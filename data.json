@@ -1,0 +1,14 @@
+{
+    "mainTest_table_name": "Main",
+    "mainTest_number_Of_trades": 0,
+    "mainTest_profit_loss": 0,
+    "test1_table_name": "9_min",
+    "test1_number_Of_trades": 0,
+    "test1_profit_loss": 0,
+    "test2_table_name": "16_min",
+    "test2_number_Of_trades": 0,
+    "test2_profit_loss": 0,
+    "test3_table_name": "30_min",
+    "test3_number_Of_trades": 0,
+    "test3_profit_loss": 0
+}
