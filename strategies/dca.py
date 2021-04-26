@@ -49,37 +49,37 @@ class Strategy_DCA:
         # execution = asyncio.create_task(self.ws.get_execution())
         # order_status = asyncio.create_task(self.ws.get_order())
         # execution_status = asyncio.create_task(self.ws.get_execution())
-        test_1 = asyncio.create_task(self.test_1())
+        # test_1 = asyncio.create_task(self.test_1())
 
 
         await ping_timer
-        await test_1
         await start_dca_multi_position
 
 
 
-    async def test_1(self):
-        pos_size = None
+
+        # await start_dca_multi_position
+
+
+
+    # async def test_1(self):
+    #     pos_size = None
         
-        while True:
 
-            pos_size = await self.ws.get_pos_info()
-            await asyncio.sleep(0.5)
+    #     while True:
+            
+    #         print('testing')
+    #         await asyncio.sleep(0.005)
 
-            if pos_size[0]['size'] == 0:
-                print('pos_size = zero')
-            else:
-                pos = pos_size[0]['size']
-                print(f'pos size: {pos}')
+    #         pos_size = await self.ws.get_pos_info()
 
-        print('exit point')
-        print(pos_info)
+    #         if pos_size[0]['size'] == 0:
 
-        # while True:
-        #     await asyncio.sleep(0.5)
-        #     if self.api.get_position_size() != 0:
-        #         print('bleehh')
-        #         break
+    #         pos_size = None
+
+
+
+
         
 
     #Create Trade Record
@@ -147,94 +147,106 @@ class Strategy_DCA:
 
         #### TEST ####
 
-        test_flag = True
+        # test_flag = True
 
-        while(test_flag == True):
-            print("!! IN MAIN LOOP !!")
-            # while(used_input_quantity <= (self.input_quantity - position_trade_quantity)):
+        # while(test_flag == True):
+        #     print("!! IN MAIN LOOP !!")
+        # while(used_input_quantity <= (self.input_quantity - position_trade_quantity)):
+
+        while True:
+
+            pos_size = 0
+            print(f'pos_size check {pos_size}')
+            if pos_size == 0:
 
             # TEST BALANCE at Start:
-            open_p_l = self.api.wallet_realized_p_l()
+                open_p_l = self.api.wallet_realized_p_l()
 
-            # # force initial Main Pos limit close order
-            # print('')
-            # print('creating main_pos entry: ')
-            # limit_price_difference = self.limit_price_difference
-            # await self.api.force_limit_order(self.entry_side, main_pos_input_quantity, limit_price_difference, 0, False)
+                # # force initial Main Pos limit close order
+                # print('')
+                # print('creating main_pos entry: ')
+                # limit_price_difference = self.limit_price_difference
+                # await self.api.force_limit_order(self.entry_side, main_pos_input_quantity, limit_price_difference, 0, False)
 
-            # TEST W/ MARKET Order:
-            print('')
-            print('creating main_pos entry: ')
-            self.api.place_order(self.api.last_price(), 'Market', self.entry_side, main_pos_input_quantity, 0, False)
-            
-            main_pos_entry = round(self.api.get_active_position_entry_price(), 0)
-
-            # create initial Main Pos limit exit order:
-            print('')
-            print('creating main_pos exit: ')
-            main_pos_exit_price = calc().calc_percent_difference('long', 'exit', main_pos_entry, profit_percent_1)
-
-            main_pos_exit_order_id = await self.api.create_limit_order(main_pos_exit_price, self.exit_side, \
-                main_pos_input_quantity, 0, True)
-            print('main_pos_exit_order_id: ' + str(main_pos_exit_order_id))
-
-            # create initial orders dict: 
-            orders_dict = dca_logic.get_orders_dict(self.entry_side, self.api.get_orders_info(), \
-                secondary_entry_2_input_quantity, profit_percent_1, profit_percent_2)
-            print(orders_dict)
-            if (orders_dict[self.exit_side] == []):
-                main_pos_exit_order_id = 'null'
-            else:
-                main_pos_exit_order_info = orders_dict[self.exit_side][0]
-
-            # create initial secondary main pos limit exit orders:
-
-            print('before')
-            orders_dict = dca_logic.get_orders_dict(self.entry_side, self.api.get_orders_info(), \
-                secondary_entry_2_input_quantity, profit_percent_1, profit_percent_2)
-            print(orders_dict)
-
-            orders_task_list = []
-            x = 0
-            exit_price = main_pos_entry
-            while (x < total_secondary_orders_2):
-                exit_price = calc().calc_percent_difference('long', 'exit', exit_price, profit_percent_2)
-                print(' !!! EXIT PRICE !!!' + str(exit_price))
-                task = asyncio.create_task(self.api.create_limit_order(exit_price, self.exit_side, \
-                secondary_exit_2_input_quantity/total_secondary_orders_2, 0, True))
-                orders_task_list.append(task)
-                x += 1
-
-            await asyncio.gather(*orders_task_list)
-
-
-            # calculate and create open orders below Main pos:
-            await self.create_secondary_orders(main_pos_entry, orders_dict, total_secondary_orders_1, \
-                total_secondary_orders_2, total_entry_orders, profit_percent_1, profit_percent_2, \
-                    secondary_entry_1_input_quantity, secondary_entry_2_input_quantity)
-
-
-            # init_orders_list = self.api.get_orders_info()
-
-            # ticker = 0
-            # timer = 30
-            # while (self.tl.active_position_check() != 0):
-
-            #     #Display Timer:
-            #     if (ticker == timer):
-            #         print("Checking for Order Change")
-            #         ticker = 0
-
-            #     ticker +=1
-            #     await asyncio.sleep(0.5)
-
-                #End Display Timer
+                # TEST W/ MARKET Order:
+                print('')
+                print('creating main_pos entry: ')
+                self.api.place_order(self.api.last_price(), 'Market', self.entry_side, main_pos_input_quantity, 0, False)
                 
-                # returns 0 in loop, returns 1 break loop for closed main pos
-                # self.update_secondary_orders(init_orders_list, main_pos_exit_order_id, secondary_entry_2_input_quantity, \
-                #     profit_percent_1, profit_percent_2)
+                main_pos_entry = round(self.api.get_active_position_entry_price(), 0)
+
+                # create initial Main Pos limit exit order:
+                print('')
+                print('creating main_pos exit: ')
+                main_pos_exit_price = calc().calc_percent_difference('long', 'exit', main_pos_entry, profit_percent_1)
+
+                main_pos_exit_order_id = await self.api.create_limit_order(main_pos_exit_price, self.exit_side, \
+                    main_pos_input_quantity, 0, True)
+                print('main_pos_exit_order_id: ' + str(main_pos_exit_order_id))
+
+                # create initial orders dict: 
+                orders_dict = dca_logic.get_orders_dict(self.entry_side, self.api.get_orders_info(), \
+                    secondary_entry_2_input_quantity, profit_percent_1, profit_percent_2)
+                print(orders_dict)
+                if (orders_dict[self.exit_side] == []):
+                    main_pos_exit_order_id = 'null'
+                else:
+                    main_pos_exit_order_info = orders_dict[self.exit_side][0]
+
+                # create initial secondary main pos limit exit orders:
+
+                print('before')
+                orders_dict = dca_logic.get_orders_dict(self.entry_side, self.api.get_orders_info(), \
+                    secondary_entry_2_input_quantity, profit_percent_1, profit_percent_2)
+                print(orders_dict)
+
+                orders_task_list = []
+                x = 0
+                exit_price = main_pos_entry
+                while (x < total_secondary_orders_2):
+                    exit_price = calc().calc_percent_difference('long', 'exit', exit_price, profit_percent_2)
+                    print(' !!! EXIT PRICE !!!' + str(exit_price))
+                    task = asyncio.create_task(self.api.create_limit_order(exit_price, self.exit_side, \
+                    secondary_exit_2_input_quantity/total_secondary_orders_2, 0, True))
+                    orders_task_list.append(task)
+                    x += 1
+
+                await asyncio.gather(*orders_task_list)
 
 
+                # calculate and create open orders below Main pos:
+                await self.create_secondary_orders(main_pos_entry, orders_dict, total_secondary_orders_1, \
+                    total_secondary_orders_2, total_entry_orders, profit_percent_1, profit_percent_2, \
+                        secondary_entry_1_input_quantity, secondary_entry_2_input_quantity)
+
+
+                # init_orders_list = self.api.get_orders_info()
+
+                # ticker = 0
+                # timer = 30
+                # while (self.tl.active_position_check() != 0):
+
+                #     #Display Timer:
+                #     if (ticker == timer):
+                #         print("Checking for Order Change")
+                #         ticker = 0
+
+                #     ticker +=1
+                #     await asyncio.sleep(0.5)
+
+                    #End Display Timer
+                    
+                    # returns 0 in loop, returns 1 break loop for closed main pos
+                    # self.update_secondary_orders(init_orders_list, main_pos_exit_order_id, secondary_entry_2_input_quantity, \
+                    #     profit_percent_1, profit_percent_2)
+
+                pos_size = None
+
+            else:
+
+                await asyncio.sleep(0.005)
+                pos = await self.ws.get_pos_info()
+                pos_size = pos[0]['size']
 
 
     async def create_secondary_orders(self, main_pos_entry, orders_dict, total_secondary_orders_1, \
