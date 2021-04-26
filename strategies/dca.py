@@ -50,9 +50,10 @@ class Strategy_DCA:
         # order_status = asyncio.create_task(self.ws.get_order())
         # execution_status = asyncio.create_task(self.ws.get_execution())
         # test_1 = asyncio.create_task(self.test_1())
-
+        # pos_size_test = asyncio.create_task(self.ws.get_pos_size())
 
         await ping_timer
+        # await pos_size_test
         await start_dca_multi_position
 
 
@@ -155,10 +156,8 @@ class Strategy_DCA:
 
         while True:
 
-            pos_size = 0
-            print(f'pos_size check {pos_size}')
-            if pos_size == 0:
-
+            position_size_check = self.api.get_position_size()
+            if position_size_check == 0:
             # TEST BALANCE at Start:
                 open_p_l = self.api.wallet_realized_p_l()
 
@@ -187,19 +186,12 @@ class Strategy_DCA:
                 # create initial orders dict: 
                 orders_dict = dca_logic.get_orders_dict(self.entry_side, self.api.get_orders_info(), \
                     secondary_entry_2_input_quantity, profit_percent_1, profit_percent_2)
-                print(orders_dict)
                 if (orders_dict[self.exit_side] == []):
                     main_pos_exit_order_id = 'null'
                 else:
                     main_pos_exit_order_info = orders_dict[self.exit_side][0]
 
                 # create initial secondary main pos limit exit orders:
-
-                print('before')
-                orders_dict = dca_logic.get_orders_dict(self.entry_side, self.api.get_orders_info(), \
-                    secondary_entry_2_input_quantity, profit_percent_1, profit_percent_2)
-                print(orders_dict)
-
                 orders_task_list = []
                 x = 0
                 exit_price = main_pos_entry
@@ -219,40 +211,19 @@ class Strategy_DCA:
                     total_secondary_orders_2, total_entry_orders, profit_percent_1, profit_percent_2, \
                         secondary_entry_1_input_quantity, secondary_entry_2_input_quantity)
 
-
-                # init_orders_list = self.api.get_orders_info()
-
-                # ticker = 0
-                # timer = 30
-                # while (self.tl.active_position_check() != 0):
-
-                #     #Display Timer:
-                #     if (ticker == timer):
-                #         print("Checking for Order Change")
-                #         ticker = 0
-
-                #     ticker +=1
-                #     await asyncio.sleep(0.5)
-
-                    #End Display Timer
-                    
-                    # returns 0 in loop, returns 1 break loop for closed main pos
-                    # self.update_secondary_orders(init_orders_list, main_pos_exit_order_id, secondary_entry_2_input_quantity, \
-                    #     profit_percent_1, profit_percent_2)
-
-                pos_size = None
-
             else:
-
                 await asyncio.sleep(0.005)
-                pos = await self.ws.get_pos_info()
-                pos_size = pos[0]['size']
+                pos_size = await self.ws.get_pos_size(position_size_check)
+                print(f'pos_size in main: {pos_size}')
+
 
 
     async def create_secondary_orders(self, main_pos_entry, orders_dict, total_secondary_orders_1, \
         total_secondary_orders_2, total_entry_orders, profit_percent_1, profit_percent_2, \
             secondary_entry_1_input_quantity, secondary_entry_2_input_quantity):
 
+
+            print('\n in create secondary orders \n')
             #determine active & available orders
             active_entry_orders = len(orders_dict[self.entry_side])
             active_exit_orders = len(orders_dict[self.exit_side]) - 1
@@ -269,22 +240,16 @@ class Strategy_DCA:
                 
                 if (x == num_check):
                     num_check += total_secondary_orders_1
-                    print('in secondary_entry_1')
                     input_quantity = secondary_entry_1_input_quantity
                     profit_percent = profit_percent_1
                     entry_price = calc().calc_percent_difference('long', 'entry', secondary_1_entry_price, profit_percent)
                     secondary_1_entry_price = entry_price
                     secondary_2_entry_price = entry_price
                 else: 
-                    print('in secondary_entry_2')
                     input_quantity = secondary_entry_2_input_quantity
                     profit_percent = profit_percent_2
                     entry_price = calc().calc_percent_difference('long', 'entry', secondary_2_entry_price, profit_percent)
-                    secondary_2_entry_price = entry_price
-
-                print('')
-                print('entry_price: ' + str(entry_price))
-                print('profit_percent: ' + str(profit_percent))
+                    secondary_2_entry_price = entry_price               
 
                 if (x <= available_entry_orders):
                     self.api.place_order(entry_price, 'Limit', self.entry_side, input_quantity, 0, False)
@@ -292,7 +257,6 @@ class Strategy_DCA:
                     order_id = orders_dict[self.entry_side][active_orders_index]['order_id']
                     self.api.change_order_price_size(entry_price, secondary_entry_1_input_quantity, order_id)
                     active_orders_index +=1
-                    orders_task_list.append(task)
                 else:
                     print('')
                     print('x index is out of range')
