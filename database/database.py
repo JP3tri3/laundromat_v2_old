@@ -6,7 +6,7 @@ from logic.calc import Calc as calc
 
 class Database:
 
-    print("DATABASE INITIALIZED")
+    print('... Database initialized ...')
 
     # # trades table:
 

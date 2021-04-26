@@ -9,6 +9,7 @@ class Trade:
     def __init__(self, trade_id, trade_record_id):
         self.trade_id = trade_id
         self.trade_record_id = trade_record_id
+        print('... Trade initialized ...')
 
     def commit_trade_record(self, coin_gain, dollar_gain, entry_price, exit_price, percent_gain, input_quantity):
 

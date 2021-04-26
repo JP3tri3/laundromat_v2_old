@@ -50,21 +50,17 @@ async def main():
 
     strat = Strategy_DCA(api_key, api_secret, trade_id, strat_id, symbol, symbol_pair, \
         key_input, input_quantity, leverage, limit_price_difference, max_active_positions, entry_side)
-    api = Bybit_Api(api_key, api_secret, symbol, symbol_pair, key_input)
+    # api = Bybit_Api(api_key, api_secret, symbol, symbol_pair, key_input)
 
-    api.set_leverage(leverage)
+    await strat.main()
 
-    #initiate strategy:
-    # strat.vwap_cross_strategy()
-    
+
+if __name__ == "__main__":  
     try:
-        print("STARTING dca_multi_position STRAT")
-        strat.dca_multi_position()
+        # loop = asyncio.get_event_loop()
+        # loop.run_until_complete(main())
+        asyncio.run(main())
     except KeyboardInterrupt:
-            print("CLOSING dca_multi_position STRAT")
-            print("closed by interrupt")
-
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-loop.close()
+        print("closed by interrupt")
+        loop.close()
 

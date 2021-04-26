@@ -4,3 +4,4 @@ pipwin
 Twisted
 Bybit
 bybit-ws
+mysql

@@ -3,6 +3,7 @@ sys.path.append("..")
 import bybit
 from logic.calc import Calc as calc
 from time import time, sleep
+import asyncio
 
 class Bybit_Api:
 
@@ -11,6 +12,7 @@ class Bybit_Api:
         self.symbol = symbol
         self.symbol_pair = symbol_pair
         self.key_input = key_input
+        print('... Bybit_API initialized ...')
 
     def get_key_input(self):
         return self.key_input
@@ -120,7 +122,6 @@ class Bybit_Api:
 
 #orders:
     def place_order(self, price, order_type, side, input_quantity, stop_loss, reduce_only):
-
         try:
             if(order_type == 'Market'):
                 print(f"sending order {price} - {side} {input_quantity} {self.symbol_pair} {order_type} {stop_loss}")
@@ -137,24 +138,26 @@ class Bybit_Api:
             return False
         return order
 
-    def create_limit_order(self, price, side, input_quantity, stop_loss, reduce_only):
+    async def create_limit_order(self, price, side, input_quantity, stop_loss, reduce_only):
         print('create_limit_order price: ' + str(price))
-        new_num_orders = len(self.get_orders()) + 1
+        # new_num_orders = len(self.get_orders()) + 1
         print('')
         print('creating limit order: ')
         self.place_order(price, 'Limit', side, input_quantity, stop_loss, reduce_only)
-        num_orders = len(self.get_orders())
-        if (num_orders == new_num_orders):
-            print('limit order created successfully: ')
-            return self.get_order_id()
-        else:
-            print('limit order not successful')
-            return 0 
+        await asyncio.sleep(0)
+        return self.get_order_id()
+        # num_orders = len(self.get_orders())
+        # if (num_orders == new_num_orders):
+        #     print('limit order created successfully: ')
+        #     return self.get_order_id()
+        # else:
+        #     print('limit order not successful')
+        #     return 0 
 
 
 
     # force limit with create limit order
-    def force_limit_order(self, side, input_quantity, limit_price_difference, stop_loss, reduce_only):
+    async def force_limit_order(self, side, input_quantity, limit_price_difference, stop_loss, reduce_only):
         print('')
         print('creating_limit_order in force: ')
         order_id = None
@@ -177,7 +180,7 @@ class Bybit_Api:
                     print("Order Price Updated: " + str(price))
                     print("")
                 else:
-                    sleep(0.5)
+                    await asyncio.sleep(0.5)
             else:
                 current_price = self.last_price()
                 price = calc().calc_limit_price_difference(side, current_price, limit_price_difference)
@@ -187,7 +190,7 @@ class Bybit_Api:
                 print('input_quantity: ' + str(input_quantity))
                 print('pos_size: ' + str(pos_size))
                 print('total_pos_size: ' + str(total_pos_size))
-                order_id = self.create_limit_order(price, side, input_quantity, stop_loss, reduce_only)
+                order_id = await self.create_limit_order(price, side, input_quantity, stop_loss, reduce_only)
                 print('force_limit_order_id: ' + str(order_id))
 
         print('Force Limit Order Successful')
@@ -233,13 +236,13 @@ class Bybit_Api:
         else:
             return float(entry_price)
 
-    def update_main_pos_exit_order(self, profit_percent, order_id, long_short, entry_exit):
+    async def update_main_pos_exit_order(self, profit_percent, order_id, long_short, entry_exit):
         print('')
         print('update_main_pos_exit_order')
         main_pos_entry = float(self.get_active_position_entry_price())
         main_pos_quantity = self.get_position_size()
         price = calc().calc_percent_difference(long_short, entry_exit, main_pos_entry, profit_percent)
-        self.change_order_price_size(price, main_pos_quantity, order_id)
+        await self.change_order_price_size(price, main_pos_quantity, order_id)
 
 
 #Leverage

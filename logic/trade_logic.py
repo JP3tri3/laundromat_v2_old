@@ -15,6 +15,7 @@ class Trade_Logic:
         self.limit_price_difference = limit_price_difference
 
         self.api = Bybit_Api(api_key, api_secret, symbol, symbol_pair, self.key_input)
+        print('... Trade_Logic initialized ...')
 
     def active_order_check(self):
         order = self.api.get_orders()

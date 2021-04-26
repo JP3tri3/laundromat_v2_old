@@ -1,6 +1,7 @@
 import sys
 sys.path.append("..")
 import datetime
+import asyncio
 
 class Calc:
 
@@ -8,6 +9,20 @@ class Calc:
         ct = datetime.datetime.now()
         print("Time: ", ct)
         return ct
+
+    async def timer(interval, clock, func, *args):
+        ticker = 0
+        while True:
+            await asyncio.sleep(interval)
+            if ticker - int(ticker) == 0:
+                print(ticker)
+
+            if int(ticker) == int(clock):
+                print("Ticker has reached: {}".format(clock))
+                func(*args)
+                ticker = 0
+
+            ticker += interval
 
     def calc_fees(self, market_type, input_quantity):
         return (input_quantity) * 0.00075 if (market_type == "Market") \
