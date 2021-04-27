@@ -46,31 +46,19 @@ def get_orders_not_active(init_orders_list, active_orders_list):
     return lst
 
 #retreive orders & separate into dict
-def get_orders_dict(entry_side, order_list, secondary_entry_2_input_quantity, \
-    profit_percent_1, profit_percent_2):
+def get_orders_dict(entry_side, order_list):
     
     entry_orders_list = []
     exit_orders_list = []
-    # input_quantity_list = []
-
 
     order_list_kv = {}
 
     for x in range(len(order_list)):
 
-        if (order_list[x]['input_quantity'] == secondary_entry_2_input_quantity):
-            profit_percent_dict = {'profit_percent' : profit_percent_2}
-        else:
-            profit_percent_dict = {'profit_percent' : profit_percent_1}
-
-        order_list[x].update(profit_percent_dict)
-
         if (order_list[x]['side'] == entry_side):
             entry_orders_list.append(order_list[x])
-            # input_quantity_list.append(order_list[x]['input_quantity'])
         else:
             exit_orders_list.append(order_list[x])
-
 
     if (entry_side == 'Buy'):
         order_list_kv['Buy'] = sorted(entry_orders_list, key=lambda k: k['price'], reverse=True)
@@ -79,8 +67,6 @@ def get_orders_dict(entry_side, order_list, secondary_entry_2_input_quantity, \
     else:
         order_list_kv['Sell'] = sorted(entry_orders_list, key=lambda k: k['price'])
         order_list_kv['Buy'] = sorted(exit_orders_list, key=lambda k: k['price'], reverse=True)
-
-    # order_list_kv['input_quantity'] = input_quantity_list
     
     return order_list_kv
 

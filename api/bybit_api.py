@@ -139,21 +139,6 @@ class Bybit_Api:
             return False
         return order
 
-    def create_limit_order(self, price, side, input_quantity, stop_loss, reduce_only):
-        print(f'create_limit_order price: {price}')
-        # new_num_orders = len(self.get_orders()) + 1
-        print('')
-        print('creating limit order: ')
-        self.place_order(price, 'Limit', side, input_quantity, stop_loss, reduce_only)
-        return self.get_order_id()
-        # num_orders = len(self.get_orders())
-        # if (num_orders == new_num_orders):
-        #     print('limit order created successfully: ')
-        #     return self.get_order_id()
-        # else:
-        #     print('limit order not successful')
-        #     return 0 
-
     #create multiple limit orders at perfect difference
     async def create_multiple_limit_orders(self, num_of_orders, starting_point_price, long_short, side, input_quantity, profit_percent, reduce_only):
         x = 0
@@ -169,6 +154,20 @@ class Bybit_Api:
             x += 1
             await asyncio.sleep(self.interval)
 
+    def create_limit_order(self, price, side, input_quantity, stop_loss, reduce_only):
+        print(f'create_limit_order price: {price}')
+        # new_num_orders = len(self.get_orders()) + 1
+        print('')
+        print('creating limit order: ')
+        self.place_order(price, 'Limit', side, input_quantity, stop_loss, reduce_only)
+        return self.get_order_id()
+        # num_orders = len(self.get_orders())
+        # if (num_orders == new_num_orders):
+        #     print('limit order created successfully: ')
+        #     return self.get_order_id()
+        # else:
+        #     print('limit order not successful')
+        #     return 0 
 
     # force limit with create limit order
     async def force_limit_order(self, side, input_quantity, limit_price_difference, stop_loss, reduce_only):
