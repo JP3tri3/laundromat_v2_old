@@ -12,6 +12,7 @@ class Bybit_Api:
         self.symbol = symbol
         self.symbol_pair = symbol_pair
         self.key_input = key_input
+        self.interval = 0
         print('... Bybit_API initialized ...')
 
     def get_key_input(self):
@@ -154,13 +155,19 @@ class Bybit_Api:
         #     return 0 
 
     #create multiple limit orders at perfect difference
-    async def create_multiple_limit_orders(self, num_of_orders, starting_point_price, long_short, entry_exit, input_quantity, profit_percent, reduce_only):
+    async def create_multiple_limit_orders(self, num_of_orders, starting_point_price, long_short, side, input_quantity, profit_percent, reduce_only):
         x = 0
+        if (side == 'Buy'):
+            entry_exit = 'entry'
+        else:
+            entry_exit = 'exit'
+        price = starting_point_price
         while (x < num_of_orders):
             price = calc().calc_percent_difference(long_short, entry_exit, price, profit_percent)
+            print(f'price: {price}')
             self.place_order(price, 'Limit', side, input_quantity, 0, reduce_only)
             x += 1
-            asyncio.sleep(self.interval)
+            await asyncio.sleep(self.interval)
 
 
     # force limit with create limit order
@@ -242,14 +249,25 @@ class Bybit_Api:
         else:
             return float(entry_price)
 
-    async def update_main_pos_exit_order(self, profit_percent, order_id, long_short, entry_exit):
+    async def update_main_pos_exit_order(self, profit_percent, order_id, entry_side):
         print('')
         print('update_main_pos_exit_order')
-        main_pos_entry = float(self.get_active_position_entry_price())
-        main_pos_quantity = self.get_position_size()
-        price = calc().calc_percent_difference(long_short, entry_exit, main_pos_entry, profit_percent)
-        self.change_order_price_size(price, main_pos_quantity, order_id)
+        try:
+            if self.get_position_size() == 0:
+                print('position closed')
+            else:
+                if (entry_side == 'Buy'):
+                    long_short = 'long'
+                else:
+                    long_short = 'short'
 
+                main_pos_entry = float(self.get_active_position_entry_price())
+                main_pos_quantity = self.get_position_size()
+                price = calc().calc_percent_difference(long_short, 'exit', main_pos_entry, profit_percent)
+                self.change_order_price_size(price, main_pos_quantity, order_id)
+        except Exception as e:
+            print("an exception occured - {}".format(e))
+            return False
 
 #Leverage
  

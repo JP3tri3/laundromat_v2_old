@@ -22,7 +22,7 @@ class Bybit_WS:
 
         print('... Bybit_WS initialized ...')
 
-    async def ping(self, timer):
+    async def ping(self, interval, timer):
         ticker = 0
         while True:
             await asyncio.sleep(self.interval)
@@ -33,7 +33,7 @@ class Bybit_WS:
                 #     print(data)
                 ticker = 0
 
-            ticker += self.interval
+            ticker += interval
 
     async def get_execution(self):
         self.ws.subscribe_execution()
@@ -107,17 +107,31 @@ class Bybit_WS:
                                     'order_id' : new_data['order_id']
                                     })
                     order_list.append(order)
-                    print('new_data updated: ')
-                    print(order)
 
-        print('break')
         print(pprint.pprint(order_list))
         return order_list
                     
 
 
 
-    async def get_filled_order(self):
+    # async def get_filled_order(self):
+    #     self.ws.subscribe_order()
+    #     while True:
+    #         await asyncio.sleep(self.interval)
+    #         data = self.ws.get_data("order")
+    #         if data:
+    #             new_data = data[0]
+    #             if (new_data['order_status'] == 'Filled'):
+    #                 order = ({'side' : new_data['side'], 
+    #                                 'order_status': new_data['order_status'], 
+    #                                 'input_quantity' : new_data['qty'],
+    #                                 'price' : new_data['price'],
+    #                                 'order_id' : new_data['order_id']
+    #                                 })
+    #                 break
+    #     return order
+
+    async def get_filled_order_id(self):
         self.ws.subscribe_order()
         while True:
             await asyncio.sleep(self.interval)
@@ -125,14 +139,10 @@ class Bybit_WS:
             if data:
                 new_data = data[0]
                 if (new_data['order_status'] == 'Filled'):
-                    order = ({'side' : new_data['side'], 
-                                    'order_status': new_data['order_status'], 
-                                    'input_quantity' : new_data['qty'],
-                                    'price' : new_data['price'],
-                                    'order_id' : new_data['order_id']
-                                    })
-                    break
-        return order
+                        order_id = new_data['order_id']
+                        break
+
+        return order_id
 
     async def instrument_info(self):
         self.ws.subscribe_instrument_info(symbol=self.symbol_pair)
