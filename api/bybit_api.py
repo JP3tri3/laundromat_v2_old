@@ -138,13 +138,12 @@ class Bybit_Api:
             return False
         return order
 
-    async def create_limit_order(self, price, side, input_quantity, stop_loss, reduce_only):
-        print('create_limit_order price: ' + str(price))
+    def create_limit_order(self, price, side, input_quantity, stop_loss, reduce_only):
+        print(f'create_limit_order price: {price}')
         # new_num_orders = len(self.get_orders()) + 1
         print('')
         print('creating limit order: ')
         self.place_order(price, 'Limit', side, input_quantity, stop_loss, reduce_only)
-        await asyncio.sleep(0)
         return self.get_order_id()
         # num_orders = len(self.get_orders())
         # if (num_orders == new_num_orders):
@@ -154,6 +153,14 @@ class Bybit_Api:
         #     print('limit order not successful')
         #     return 0 
 
+    #create multiple limit orders at perfect difference
+    async def create_multiple_limit_orders(self, num_of_orders, starting_point_price, long_short, entry_exit, input_quantity, profit_percent, reduce_only):
+        x = 0
+        while (x < num_of_orders):
+            price = calc().calc_percent_difference(long_short, entry_exit, price, profit_percent)
+            self.place_order(price, 'Limit', side, input_quantity, 0, reduce_only)
+            x += 1
+            asyncio.sleep(self.interval)
 
 
     # force limit with create limit order
@@ -171,14 +178,13 @@ class Bybit_Api:
             if (new_num_orders == num_orders):
                 last_price = self.last_price()
                 if (last_price != current_price) and (last_price != price):
-                    print("last_price: " + str(last_price))
-                    print("current_price: " + str(current_price))
-                    print("price: " + str(price))
+                    print(f"last_price: {last_price}")
+                    print(f"current_price: {current_price}")
+                    print(f"price: {price}")
                     current_price = last_price
                     price = calc().calc_limit_price_difference(side, last_price, limit_price_difference)
                     self.change_order_price_size(price, input_quantity, order_id)
-                    print("Order Price Updated: " + str(price))
-                    print("")
+                    print(f"Order Price Updated: {price}\n")
                 else:
                     await asyncio.sleep(0.5)
             else:
@@ -187,11 +193,11 @@ class Bybit_Api:
                 print('force limit order id not available')
                 pos_size = self.get_position_size()
                 input_quantity = total_pos_size - pos_size
-                print('input_quantity: ' + str(input_quantity))
-                print('pos_size: ' + str(pos_size))
-                print('total_pos_size: ' + str(total_pos_size))
-                order_id = await self.create_limit_order(price, side, input_quantity, stop_loss, reduce_only)
-                print('force_limit_order_id: ' + str(order_id))
+                print(f'input_quantity: {input_quantity}')
+                print(f'pos_size: {pos_size}')
+                print(f'total_pos_size: {total_pos_size}')
+                order_id = self.create_limit_order(price, side, input_quantity, stop_loss, reduce_only)
+                print(f'force_limit_order_id: {order_id}')
 
         print('Force Limit Order Successful')
 
@@ -242,7 +248,7 @@ class Bybit_Api:
         main_pos_entry = float(self.get_active_position_entry_price())
         main_pos_quantity = self.get_position_size()
         price = calc().calc_percent_difference(long_short, entry_exit, main_pos_entry, profit_percent)
-        await self.change_order_price_size(price, main_pos_quantity, order_id)
+        self.change_order_price_size(price, main_pos_quantity, order_id)
 
 
 #Leverage

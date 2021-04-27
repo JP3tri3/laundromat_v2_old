@@ -8,7 +8,7 @@ class Bybit_WS:
         self.api_key = api_key
         self.api_secret = api_secret
         self.symbol_pair = symbol_pair
-        self.interval = 1
+        self.interval = 0
 
 
         if (test_true_false == True):
@@ -29,8 +29,8 @@ class Bybit_WS:
             if int(ticker) == int(timer):
                 self.ws.ping()
                 data = self.ws.get_data("pong")
-                if data:
-                    print(data)
+                # if data:
+                #     print(data)
                 ticker = 0
 
             ticker += self.interval
@@ -56,8 +56,22 @@ class Bybit_WS:
                 new_data = data
                 # print(pprint.pprint(new_data))
                 flag = False
+        print(pprint.pprint(new_data))
         return new_data
 
+    async def get_pos_size(self, pos_size_api):
+        self.ws.subscribe_position()
+        flag = True
+        while (flag == True):
+            await asyncio.sleep(self.interval)
+            data = self.ws.get_data("position")
+            # pos_size = data[0]
+            if data:
+                pos_size = data[0]['size']
+                if (pos_size != pos_size_api):
+                    flag = False
+        # print(pos_size)
+        # return pos_size       
 
 
     async def get_order(self):
@@ -66,10 +80,59 @@ class Bybit_WS:
             await asyncio.sleep(self.interval)
             data = self.ws.get_data("order")
             if data:
-                return data[0]['order_status']
-                # print('')
-                # print('get_order')
-                # print(pprint.pprint(data))
+                print(pprint.pprint(data))
+
+
+    async def update_order_list(self, num_of_orders, order_list, \
+        secondary_entry_1_input_quantity, profit_percent_1, profit_percent_2):
+        self.ws.subscribe_order()
+        order_number = 0
+        while (order_number < num_of_orders):
+            await asyncio.sleep(self.interval)
+            data = self.ws.get_data("order")
+            if data:
+                new_data = data[0]
+                if new_data['order_status'] == 'New':
+                    order_number += 1
+                    input_quantity = new_data['qty']
+                    if (input_quantity == secondary_entry_1_input_quantity):
+                        profit_percent = profit_percent_1
+                    else:
+                        profit_percent = profit_percent_2
+                    order = ({'side' : new_data['side'], 
+                                    'order_status': new_data['order_status'], 
+                                    'input_quantity' : new_data['qty'],
+                                    'price' : new_data['price'],
+                                    'profit_percent' : profit_percent,
+                                    'order_id' : new_data['order_id']
+                                    })
+                    order_list.append(order)
+                    print('new_data updated: ')
+                    print(order)
+
+        print('break')
+        print(pprint.pprint(order_list))
+        return order_list
+                    
+
+
+
+    async def get_filled_order(self):
+        self.ws.subscribe_order()
+        while True:
+            await asyncio.sleep(self.interval)
+            data = self.ws.get_data("order")
+            if data:
+                new_data = data[0]
+                if (new_data['order_status'] == 'Filled'):
+                    order = ({'side' : new_data['side'], 
+                                    'order_status': new_data['order_status'], 
+                                    'input_quantity' : new_data['qty'],
+                                    'price' : new_data['price'],
+                                    'order_id' : new_data['order_id']
+                                    })
+                    break
+        return order
 
     async def instrument_info(self):
         self.ws.subscribe_instrument_info(symbol=self.symbol_pair)
