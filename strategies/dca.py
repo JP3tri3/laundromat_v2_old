@@ -44,22 +44,17 @@ class Strategy_DCA:
     async def main(self):
 
         ping_timer = asyncio.create_task(self.ws.ping(3))
-        # pos_status = asyncio.create_task(self.ws.get_pos_info())
+        # # pos_status = asyncio.create_task(self.ws.get_pos_info())
         start_dca_multi_position = asyncio.create_task(self.dca_multi_position())
-        # execution = asyncio.create_task(self.ws.get_execution())
-        # order_status = asyncio.create_task(self.ws.get_order())
-        # execution_status = asyncio.create_task(self.ws.get_execution())
-        # test_1 = asyncio.create_task(self.test_1())
-        # pos_size_test = asyncio.create_task(self.ws.get_pos_size())
+        # # execution = asyncio.create_task(self.ws.get_execution())
+        # # order_status = asyncio.create_task(self.ws.get_order())
+        # # execution_status = asyncio.create_task(self.ws.get_execution())
+        # # test_1 = asyncio.create_task(self.test_1())
+        # # pos_size_test = asyncio.create_task(self.ws.get_pos_size())
 
         await ping_timer
-        # await pos_size_test
+        # # await pos_size_test
         await start_dca_multi_position
-
-
-
-
-        # await start_dca_multi_position
 
 
 
@@ -67,16 +62,19 @@ class Strategy_DCA:
     #     pos_size = None
         
 
-    #     while True:
+        # while True:
+
+
+
             
-    #         print('testing')
-    #         await asyncio.sleep(0.005)
+        #     print('testing')
+        #     await asyncio.sleep(0.005)
 
-    #         pos_size = await self.ws.get_pos_info()
+        #     pos_size = await self.ws.get_pos_info()
 
-    #         if pos_size[0]['size'] == 0:
+        #     if pos_size[0]['size'] == 0:
 
-    #         pos_size = None
+        #     pos_size = None
 
 
 
@@ -158,8 +156,6 @@ class Strategy_DCA:
 
             position_size_check = self.api.get_position_size()
             if position_size_check == 0:
-            # TEST BALANCE at Start:
-                open_p_l = self.api.wallet_realized_p_l()
 
                 # # force initial Main Pos limit close order
                 # print('')
@@ -212,10 +208,13 @@ class Strategy_DCA:
                         secondary_entry_1_input_quantity, secondary_entry_2_input_quantity)
 
             else:
+                print('else waiting')
                 await asyncio.sleep(0.005)
-                pos_size = await self.ws.get_pos_size(position_size_check)
-                print(f'pos_size in main: {pos_size}')
+                order = await self.ws.get_filled_order()
 
+                print(order)
+
+                # print(updated_orders_list)
 
 
     async def create_secondary_orders(self, main_pos_entry, orders_dict, total_secondary_orders_1, \
@@ -266,85 +265,60 @@ class Strategy_DCA:
                 x += 1
 
 
-    async def update_secondary_orders(self, init_orders_list, main_pos_exit_order_id, secondary_entry_2_input_quantity,\
+    async def update_secondary_orders(self, order, main_pos_exit_order_id, secondary_entry_2_input_quantity,\
             profit_percent_1, profit_percent_2):
 
-        #init list to check against, equals maximum orders
-        if (init_orders_list == []):
-            init_orders_list = self.api.get_orders_info()
+        print('processing waiting available orders: ')
 
-        #create new list in loop and check for changes
-        orders_list = self.api.get_orders_info()
-        orders_waiting = dca_logic.get_orders_not_active(init_orders_list, orders_list)
+        print(orders_waiting)
+        order_waiting = orders_waiting[x]
+        input_quantity = order_waiting['input_quantity']
+        profit_percent = order_waiting['profit_percent']
 
-        if (orders_waiting != []):
-            num_orders_waiting = len(orders_waiting)
-            orders_waiting = dca_logic.get_orders_dict(self.entry_side, orders_waiting, \
-                secondary_entry_2_input_quantity, profit_percent_1, profit_percent_2)
-            #index for creating trade order / checking profit
-            for x in range(num_orders_waiting):
-                print('')
-                print('processing waiting available orders: ')
-                
-                #test:
-                print('num_orders_waiting: ' + str(num_orders_waiting))
-                print('x: ' + str(x))
-
-
-                print(orders_waiting)
-                order_waiting = orders_waiting[x]
-                input_quantity = order_waiting['input_quantity']
-                profit_percent = order_waiting['profit_percent']
-
-                if order_waiting['order_id'] == main_pos_exit_order_id:
-                    
-                    #check for closed main_pos exit order
-                    while (x < num_orders_waiting):
-                        print('in main_pos exit loop: ')
-                        print('x: ' + str(x))
-                        print('num_orders_waiting: ' + str(num_orders_waiting))
-                        if (orders_waiting[x]['side'] == self.exit_side):
-                            self.create_trade_record(profit_percent, order_waiting)
-                        x += 1
-
-                    print("Main Pos Closed")
-                    print("Breaking")
-                    print('')
-                    break
-
-                if order_waiting['side'] == self.entry_side:
-                    #create new exit order upon entry close
-                    print("creating new exit order")
-                    exit_price = float(order_waiting['price'])
-                    price = str(calc().calc_percent_difference('long', 'exit', exit_price, profit_percent))
-                    # self.api.place_order(price, 'Limit', self.exit_side, secondary_exit_1_input_quantity, 0, False)
-                    order = self.api.create_limit_order(price, self.exit_side, input_quantity, 0, True)
-                    if (order == 0):
-                        print('create new exit order failed')
-                        print('attempted price: ' + str(price))
-                        print('last_price: ' + str(self.api.last_price()))
-
-                elif order_waiting['side'] == self.exit_side:
-                    self.create_trade_record(profit_percent, order_waiting)
-                    #create new entry order upon exit close
-                    print("Creating Trade Record")
-                    entry_price = float(order_waiting['price'])
-                    print('creating new entry order')
-                    price = calc().calc_percent_difference('long', 'entry', entry_price, profit_percent)
-                    # self.api.place_order(price, 'Limit', self.entry_side, secondary_entry_1_input_quantity, 0, False)                                   
-                    order = self.api.create_limit_order(price, self.entry_side, input_quantity, 0, False)
-                    if (order == 0):
-                        print('create new entry order failed')
-                        print('attempted price: ' + str(price))
-                        print('last_price: ' + str(self.api.last_price()))
-
-            ## TEST ##
-            if main_pos_exit_order_id == 'null':
-                print('main_pos_exit_order_id null test succesful')
-                test_flag = False
+        if order_waiting['order_id'] == main_pos_exit_order_id:
             
-            self.api.update_main_pos_exit_order(profit_percent, main_pos_exit_order_id, 'long', 'exit')
-            init_orders_list = []
+            #check for closed main_pos exit order
+            while (x < num_orders_waiting):
+                print('in main_pos exit loop: ')
+                print('x: ' + str(x))
+                print('num_orders_waiting: ' + str(num_orders_waiting))
+                if (orders_waiting[x]['side'] == self.exit_side):
+                    self.create_trade_record(profit_percent, order_waiting)
+                x += 1
 
-        else:
-            return 1
+            # print("Main Pos Closed")
+            # print("Breaking")
+            # print('')
+            # break
+
+        if order_waiting['side'] == self.entry_side:
+            #create new exit order upon entry close
+            print("creating new exit order")
+            exit_price = float(order_waiting['price'])
+            price = str(calc().calc_percent_difference('long', 'exit', exit_price, profit_percent))
+            # self.api.place_order(price, 'Limit', self.exit_side, secondary_exit_1_input_quantity, 0, False)
+            order = self.api.create_limit_order(price, self.exit_side, input_quantity, 0, True)
+            if (order == 0):
+                print('create new exit order failed')
+                print('attempted price: ' + str(price))
+                print('last_price: ' + str(self.api.last_price()))
+
+        elif order_waiting['side'] == self.exit_side:
+            self.create_trade_record(profit_percent, order_waiting)
+            #create new entry order upon exit close
+            print("Creating Trade Record")
+            entry_price = float(order_waiting['price'])
+            print('creating new entry order')
+            price = calc().calc_percent_difference('long', 'entry', entry_price, profit_percent)
+            # self.api.place_order(price, 'Limit', self.entry_side, secondary_entry_1_input_quantity, 0, False)                                   
+            order = self.api.create_limit_order(price, self.entry_side, input_quantity, 0, False)
+            if (order == 0):
+                print('create new entry order failed')
+                print('attempted price: ' + str(price))
+                print('last_price: ' + str(self.api.last_price()))
+
+        ## TEST ##
+        if main_pos_exit_order_id == 'null':
+            print('main_pos_exit_order_id null test succesful')
+        
+        self.api.update_main_pos_exit_order(profit_percent, main_pos_exit_order_id, 'long', 'exit')
