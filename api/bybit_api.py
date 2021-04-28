@@ -181,6 +181,7 @@ class Bybit_Api:
 
         while(total_pos_size != pos_size):
             new_num_orders = len(self.get_orders())
+            await asyncio.sleep(0.025)
             if (new_num_orders == num_orders):
                 last_price = self.last_price()
                 if (last_price != current_price) and (last_price != price):
@@ -191,8 +192,6 @@ class Bybit_Api:
                     price = calc().calc_limit_price_difference(side, last_price, limit_price_difference)
                     self.change_order_price_size(price, input_quantity, order_id)
                     print(f"Order Price Updated: {price}\n")
-                else:
-                    await asyncio.sleep(0.5)
             else:
                 current_price = self.last_price()
                 price = calc().calc_limit_price_difference(side, current_price, limit_price_difference)
@@ -248,7 +247,7 @@ class Bybit_Api:
         else:
             return float(entry_price)
 
-    async def update_main_pos_exit_order(self, profit_percent, order_id, entry_side):
+    def update_main_pos_exit_order(self, profit_percent, order_id, entry_side):
         print('')
         print('update_main_pos_exit_order')
         try:

@@ -83,6 +83,7 @@ def create_order_price_list(self, initial_price, num_of_orders, profit_percent):
         lst.append(round(entry_price, 0))
     return lst
 
+
 # UNUSED: get last input quantity - use with get_closest_order_to_position
 # def get_last_input_quantity_dict(self, entry_side, order_list):
 #     closest_order = get_closest_order_to_position(entry_side, order_list)
@@ -104,13 +105,6 @@ def create_order_price_list(self, initial_price, num_of_orders, profit_percent):
 # def get_list_differences(lst_1, lst_2):
 #     return (list(list(set(lst_1)-set(lst_2)) + list(set(lst_2)-set(lst_1))))
 
-# UNUSED: get current amount of input quantity in open orders & position
-# def get_used_input_quantity(self, input_quantity_list):
-#     input_quantity = self.api.get_position_size()
-
-#     for x in range(len(input_quantity_list)):
-#         input_quantity += input_quantity_list[x]
-#     return input_quantity
 
 # UNUSED: check for order changes
 # def check_order_change(self, orders_list, closest_order):

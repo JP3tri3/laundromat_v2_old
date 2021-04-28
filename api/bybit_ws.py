@@ -25,7 +25,7 @@ class Bybit_WS:
     async def ping(self, interval, timer):
         ticker = 0
         while True:
-            await asyncio.sleep(self.interval)
+            await asyncio.sleep(interval)
             if int(ticker) == int(timer):
                 self.ws.ping()
                 data = self.ws.get_data("pong")
@@ -98,18 +98,21 @@ class Bybit_WS:
                     input_quantity = new_data['qty']
                     if (input_quantity == secondary_entry_1_input_quantity):
                         profit_percent = profit_percent_1
+                        name = 'secondary_1'
                     else:
                         profit_percent = profit_percent_2
-                    order = ({'side' : new_data['side'], 
+                        name = 'secondary_2'
+
+                    order = ({'name' : name,
+                                    'side' : new_data['side'], 
                                     'order_status': new_data['order_status'], 
                                     'input_quantity' : new_data['qty'],
-                                    'price' : new_data['price'],
+                                    'price' : float(new_data['price']),
                                     'profit_percent' : profit_percent,
                                     'order_id' : new_data['order_id']
                                     })
                     orders_list.append(order)
 
-        print(pprint.pprint(orders_list))
         return orders_list
 
     async def update_orders_list_main_pos_exit(self, orders_list, exit_side, profit_percent):
@@ -122,10 +125,12 @@ class Bybit_WS:
                 new_data = data[0]
                 if new_data['side'] == exit_side:
                     input_quantity = new_data['qty']
-                    order = ({'side' : new_data['side'], 
+                    name = 'main'
+                    order = ({'name' : name,
+                                    'side' : new_data['side'], 
                                     'order_status': new_data['order_status'], 
                                     'input_quantity' : new_data['qty'],
-                                    'price' : new_data['price'],
+                                    'price' : float(new_data['price']),
                                     'profit_percent' : profit_percent,
                                     'order_id' : new_data['order_id']
                                     })
@@ -160,6 +165,8 @@ class Bybit_WS:
             await asyncio.sleep(self.interval)
             data = self.ws.get_data("order")
             if data:
+                print('get_filled_order_id CHECK')
+                print(pprint.pprint(data))
                 new_data = data[0]
                 if (new_data['order_status'] == 'Filled'):
                         order_id = new_data['order_id']
