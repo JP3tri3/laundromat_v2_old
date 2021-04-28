@@ -301,7 +301,7 @@ class Strategy_DCA:
                 #create new exit order upon entry close
                 print("creating new exit order")
                 price = calc().calc_percent_difference('long', 'exit', price, profit_percent)
-                self.api.place_order(price, 'Limit', self.exit_side, input_quantity, 0, False)
+                self.api.place_order(price, 'Limit', self.exit_side, input_quantity, 0, True)
                 print('\n!!! Update Order TEST: ')
                 print(f'price: {price}')
                 print(type(price))
@@ -317,7 +317,7 @@ class Strategy_DCA:
                 print(f'price: {price}')
                 print(type(price))
                 print(f'input_quantity: {input_quantity}\n')
-                self.api.place_order(price, 'Limit', self.entry_side, input_quantity, 0, True)
+                self.api.place_order(price, 'Limit', self.entry_side, input_quantity, 0, False)
 
             await asyncio.sleep(0)
         except Exception as e:
