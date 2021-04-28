@@ -43,6 +43,7 @@ def get_orders_not_active(init_orders_list, active_orders_list):
             if id['order_id'] == order_id:
                 lst.remove(id)
                 break
+
     return lst
 
 #retreive orders & separate into dict
@@ -70,18 +71,47 @@ def get_orders_dict(entry_side, order_list):
     
     return order_list_kv
 
-# UNUSED: create price list for orders
-def create_order_price_list(self, initial_price, num_of_orders, profit_percent):
-    lst = []
-    index = 0
-    entry_price = initial_price
 
-    lst.append(round(initial_price, 0))
+def get_updated_orders_list(order_list, secondary_entry_1_input_quantity, profit_percent_1, profit_percent_2, main_pos_exit_order_id):
+    new_lst = []
+    for order in order_list: 
+        input_quantity = order['qty']
+        if (order['order_id'] == main_pos_exit_order_id):
+            profit_percent = profit_percent_1
+            name = 'main'
+        elif (input_quantity == secondary_entry_1_input_quantity):
+            profit_percent = profit_percent_1
+            name = 'secondary_1'
+        else:
+            profit_percent = profit_percent_2
+            name = 'secondary_2'
 
-    for x in range(num_of_orders):
-        entry_price = calc().calc_percent_difference('long', 'entry', entry_price, profit_percent)
-        lst.append(round(entry_price, 0))
-    return lst
+        updated_order = ({'name' : name,
+                        'side' : order['side'], 
+                        'order_status': order['order_status'], 
+                        'input_quantity' : order['qty'],
+                        'price' : float(order['price']),
+                        'profit_percent' : profit_percent,
+                        'order_id' : order['order_id']
+                        })
+
+        new_lst.append(updated_order)
+        return new_lst
+
+
+
+# # UNUSED: create price list for orders
+# def create_order_price_list(self, initial_price, num_of_orders, profit_percent):
+#     lst = []
+#     index = 0
+#     entry_price = initial_price
+
+#     lst.append(round(initial_price, 0))
+
+#     for x in range(num_of_orders):
+#         entry_price = calc().calc_percent_difference('long', 'entry', entry_price, profit_percent)
+#         lst.append(round(entry_price, 0))
+#     return lst
 
 
 # UNUSED: get last input quantity - use with get_closest_order_to_position

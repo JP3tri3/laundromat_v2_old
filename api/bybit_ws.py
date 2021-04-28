@@ -83,62 +83,64 @@ class Bybit_WS:
                 print(pprint.pprint(data))
 
 
-    async def update_orders_list(self, num_of_orders, orders_list, \
-        secondary_entry_1_input_quantity, profit_percent_1, profit_percent_2):
+    # async def update_orders_list(self, num_of_orders, orders_list, \
+    #     secondary_entry_1_input_quantity, profit_percent_1, profit_percent_2):
         
-        self.ws.subscribe_order()
-        order_number = 0
-        while (order_number < num_of_orders):
-            await asyncio.sleep(self.interval)
-            data = self.ws.get_data("order")
-            if data:
-                new_data = data[0]
-                if new_data['order_status'] == 'New':
-                    order_number += 1
-                    input_quantity = new_data['qty']
-                    if (input_quantity == secondary_entry_1_input_quantity):
-                        profit_percent = profit_percent_1
-                        name = 'secondary_1'
-                    else:
-                        profit_percent = profit_percent_2
-                        name = 'secondary_2'
+    #     self.ws.subscribe_order()
+    #     order_number = 0
+    #     while (order_number < num_of_orders):
+    #         await asyncio.sleep(self.interval)
+    #         data = self.ws.get_data("order")
+    #         if data:
+    #             new_data = data[0]
+    #             if new_data['order_status'] == 'New':
+    #                 order_number += 1
+    #                 input_quantity = new_data['qty']
+    #                 if (input_quantity == secondary_entry_1_input_quantity):
+    #                     profit_percent = profit_percent_1
+    #                     name = 'secondary_1'
+    #                 else:
+    #                     profit_percent = profit_percent_2
+    #                     name = 'secondary_2'
 
-                    order = ({'name' : name,
-                                    'side' : new_data['side'], 
-                                    'order_status': new_data['order_status'], 
-                                    'input_quantity' : new_data['qty'],
-                                    'price' : float(new_data['price']),
-                                    'profit_percent' : profit_percent,
-                                    'order_id' : new_data['order_id']
-                                    })
-                    orders_list.append(order)
+    #                 order = ({'name' : name,
+    #                                 'side' : new_data['side'], 
+    #                                 'order_status': new_data['order_status'], 
+    #                                 'input_quantity' : new_data['qty'],
+    #                                 'price' : float(new_data['price']),
+    #                                 'profit_percent' : profit_percent,
+    #                                 'order_id' : new_data['order_id']
+    #                                 })
+    #                 orders_list.append(order)
 
-        return orders_list
+    #     return orders_list
 
-    async def update_orders_list_main_pos_exit(self, orders_list, exit_side, profit_percent):
 
-        self.ws.subscribe_order()
-        while True:
-            await asyncio.sleep(self.interval)
-            data = self.ws.get_data("order")
-            if data:
-                new_data = data[0]
-                if new_data['side'] == exit_side:
-                    input_quantity = new_data['qty']
-                    name = 'main'
-                    order = ({'name' : name,
-                                    'side' : new_data['side'], 
-                                    'order_status': new_data['order_status'], 
-                                    'input_quantity' : new_data['qty'],
-                                    'price' : float(new_data['price']),
-                                    'profit_percent' : profit_percent,
-                                    'order_id' : new_data['order_id']
-                                    })
-                    orders_list.append(order)
-                    break
 
-        print(pprint.pprint(orders_list))
-        return orders_list
+    # async def update_orders_list_main_pos_exit(self, orders_list, exit_side, profit_percent):
+
+    #     self.ws.subscribe_order()
+    #     while True:
+    #         await asyncio.sleep(self.interval)
+    #         data = self.ws.get_data("order")
+    #         if data:
+    #             new_data = data[0]
+    #             if new_data['side'] == exit_side:
+    #                 input_quantity = new_data['qty']
+    #                 name = 'main'
+    #                 order = ({'name' : name,
+    #                                 'side' : new_data['side'], 
+    #                                 'order_status': new_data['order_status'], 
+    #                                 'input_quantity' : new_data['qty'],
+    #                                 'price' : float(new_data['price']),
+    #                                 'profit_percent' : profit_percent,
+    #                                 'order_id' : new_data['order_id']
+    #                                 })
+    #                 orders_list.append(order)
+    #                 break
+
+    #     print(pprint.pprint(orders_list))
+    #     return orders_list
 
 
                     
@@ -165,9 +167,11 @@ class Bybit_WS:
             await asyncio.sleep(self.interval)
             data = self.ws.get_data("order")
             if data:
-                print('get_filled_order_id CHECK')
-                print(pprint.pprint(data))
+                print('\n get_filled_order_id CHECK')
+                # print(pprint.pprint(data))
                 new_data = data[0]
+                print('order_status: ')
+                print(new_data['order_status'])
                 if (new_data['order_status'] == 'Filled'):
                         order_id = new_data['order_id']
                         break
