@@ -49,7 +49,7 @@ class Trade_Logic:
         print('get_position size: ' + str(self.api.get_position_size()))
 
 
-    def create_order(self, side_input, order_type, input_quantity):
+    def create_order(self, side_input, order_type, input_quantity, link_id):
         global percent_level
         global percent_gained_lock
 
@@ -72,7 +72,7 @@ class Trade_Logic:
                 if ((self.active_order_check() == 0) and (self.active_position_check() == 0)):
                     print("Attempting to place order...")
                     entry_price = calc().calc_limit_price_difference(side_input, self.api.last_price(), self.limit_price_difference)
-                    self.api.place_order(price=entry_price, order_type=order_type, side=side_input, input_quantity=input_quantity, stop_loss=initial_stop_loss, reduce_only=False)
+                    self.api.place_order(price=entry_price, order_type=order_type, side=side_input, input_quantity=input_quantity, stop_loss=initial_stop_loss, reduce_only=False, link_id=link_id)
 
                     if(order_type == 'Limit') and (self.active_order_check() == 1):
                         print("")
@@ -96,13 +96,14 @@ class Trade_Logic:
                         return 1
 
     def close_position_market(self):
+        link_id = 'mc__'
         position_size = self.api.get_position_size()
         flag = True
 
         if(self.api.get_position_side() == "Sell"):
-            self.api.place_order(self.api.last_price(), 'Market', 'Buy', position_size, 0, True)
+            self.api.place_order(self.api.last_price(), 'Market', 'Buy', position_size, 0, True, link_id)
         else:
-            self.api.place_order(self.api.last_price(), 'Market', 'Sell', position_size, 0, True)
+            self.api.place_order(self.api.last_price(), 'Market', 'Sell', position_size, 0, True, link_id)
 
         while(flag == True):
             if (self.active_position_check() == 1):
@@ -117,6 +118,7 @@ class Trade_Logic:
         current_price = self.api.last_price()
         input_quantity = self.api.get_position_size()
         side = self.api.get_position_side()
+        link_id = 'fc__'
         print("current_price: " + str(current_price))
 
         side = 'Sell' if (side == 'Buy') else 'Buy'
@@ -125,7 +127,7 @@ class Trade_Logic:
             if(self.active_position_check() == 1) and (self.active_order_check() == 0):
                 print("Print Order Check")
                 price = calc().calc_limit_price_difference(side, self.api.last_price(), self.limit_price_difference)
-                self.api.place_order(price=price, order_type='Limit', side=side, input_quantity=input_quantity, stop_loss=0, reduce_only=True)
+                self.api.place_order(price=price, order_type='Limit', side=side, input_quantity=input_quantity, stop_loss=0, reduce_only=True, link_id=link_id)
                 time.sleep(2)
             elif (self.active_position_check() == 1) and (self.active_position_check() == 1):
                 if (self.api.last_price() != current_price) and (self.api.last_price() != price):

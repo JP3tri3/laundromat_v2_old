@@ -8,7 +8,7 @@ class Bybit_WS:
         self.api_key = api_key
         self.api_secret = api_secret
         self.symbol_pair = symbol_pair
-        self.interval = 0
+        self.interval = 0.5
 
 
         if (test_true_false == True):
@@ -144,22 +144,18 @@ class Bybit_WS:
 
 
                     
-    # async def get_filled_order(self):
-    #     self.ws.subscribe_order()
-    #     while True:
-    #         await asyncio.sleep(self.interval)
-    #         data = self.ws.get_data("order")
-    #         if data:
-    #             new_data = data[0]
-    #             if (new_data['order_status'] == 'Filled'):
-    #                 order = ({'side' : new_data['side'], 
-    #                                 'order_status': new_data['order_status'], 
-    #                                 'input_quantity' : new_data['qty'],
-    #                                 'price' : new_data['price'],
-    #                                 'order_id' : new_data['order_id']
-    #                                 })
-    #                 break
-    #     return order
+    async def get_filled_order(self):
+        self.ws.subscribe_order()
+        while True:
+            await asyncio.sleep(self.interval)
+            data = self.ws.get_data("order")
+            if data:
+                filled_order = data[0]
+                order_link_id = filled_order['order_link_id']
+                order_status = filled_order['order_status']
+                if (order_link_id != 'main') and (order_status == 'Filled'):
+                    print(f'filled order: {order_link_id}')
+                    return filled_order
 
     async def get_filled_order_id(self):
         self.ws.subscribe_order()
@@ -167,14 +163,13 @@ class Bybit_WS:
             await asyncio.sleep(self.interval)
             data = self.ws.get_data("order")
             if data:
-                print('\n get_filled_order_id CHECK')
-                # print(pprint.pprint(data))
                 new_data = data[0]
-                print('order_status: ')
-                print(new_data['order_status'])
                 if (new_data['order_status'] == 'Filled'):
-                        order_id = new_data['order_id']
-                        break
+                    print('\n get_filled_order_id CHECK')
+                    print('order_status: ')
+                    print(new_data['order_status'])
+                    order_id = new_data['order_id']
+                    # break
 
         return order_id
 
