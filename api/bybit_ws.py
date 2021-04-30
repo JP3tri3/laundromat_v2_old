@@ -153,25 +153,24 @@ class Bybit_WS:
                 filled_order = data[0]
                 order_link_id = filled_order['order_link_id']
                 order_status = filled_order['order_status']
-                if (order_link_id != 'main') and (order_status == 'Filled'):
+                if (order_status == 'Filled'):
                     print(f'filled order: {order_link_id}')
                     return filled_order
 
-    async def get_filled_order_id(self):
+    async def get_new_or_changed_order(self):
         self.ws.subscribe_order()
         while True:
             await asyncio.sleep(self.interval)
             data = self.ws.get_data("order")
             if data:
-                new_data = data[0]
-                if (new_data['order_status'] == 'Filled'):
-                    print('\n get_filled_order_id CHECK')
-                    print('order_status: ')
-                    print(new_data['order_status'])
-                    order_id = new_data['order_id']
-                    # break
-
-        return order_id
+                new_order = data[0]
+                order_link_id = new_order['order_link_id']
+                order_status = new_order['order_status']
+                print("TEST STATUS in WS Get new or changed order: ")
+                print(order_status)
+                if (order_status == 'New'):
+                    print(f'new or changed order: {order_link_id}')
+                    return new_order
 
     async def instrument_info(self):
         self.ws.subscribe_instrument_info(symbol=self.symbol_pair)

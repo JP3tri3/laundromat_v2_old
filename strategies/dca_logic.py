@@ -3,34 +3,13 @@ sys.path.append("..")
 from logic.calc import Calc as calc
 
 
-#print closed balance details
-def print_closed_balance_details(last_price, open_balance, open_p_l, my_wallet_balance, my_wallet_realized_p_l):
-    print('')
-    print('closed balance details: ')
-    print("Balance at open: ")
-    print(open_balance)
-    print("Balance at close: ")
-    close_balance = my_wallet_balance
-    print(close_balance)
-    print('')
-    print('balance difference: ')
-    difference = close_balance - open_balance
-    print(difference)
-    print('')
-    print('total gain: ')
-    print(difference * last_price)
-    print('')
-    print('P_L')
-    closed_p_l = my_wallet_realized_p_l
-    print('open_p_l: ')
-    print(open_p_l)
-    print('closed_p_l: ')
-    print(closed_p_l)
-    print('p_l_difference: ')
-    p_l_difference = closed_p_l - open_p_l
-    print(p_l_difference)
-    print('total p_l: ')
-    print(p_l_difference * last_price)
+
+def initialize_orders_list(size):
+    lst = []
+    for i in range(size):
+        lst.append(i)
+    
+    return lst
 
 def create_link_id(name_id, pos_id):
     # name_id: first xxxx- (first 4)
@@ -56,13 +35,6 @@ def extract_link_id_pos(link_id):
 
     print(f'pos_id: {pos_id}')
     return int(pos_id)
-
-# def create_positioned_order_list(order_list, num_total_orders, num_entry_orders):
-#     exit_orders = num_total_orders - num_entry_orders
-
-#     for x in range(num_total_orders):
-
-    
 
 # compare lists and return difference comparing order_id
 def get_orders_not_active(init_orders_list, active_orders_list):
@@ -103,67 +75,33 @@ def get_orders_dict(entry_side, order_list):
     return order_list_kv
 
 
-def get_updated_orders_list(order_list, profit_percent_1, profit_percent_2):
-    
-    new_lst = []
-    
-    index = 1
-
-    for order in order_list:
+def get_updated_order_info(order, profit_percent_1, profit_percent_2):
+        
         order_link_id = order['order_link_id']
-        link_id = order_link_id[:4]
-        if (link_id == 'main'):
-            profit_percent = profit_percent_1 / index
-        elif (link_id == 'pp_1'):
+        link_name = order_link_id[:4]
+        link_id_pos = extract_link_id_pos(order_link_id)
+
+        if (link_name == 'main'):
+            profit_percent = profit_percent_1 / link_id_pos
+        elif (link_name == 'pp_1'):
             profit_percent = profit_percent_1
-        elif (link_id == 'pp_2'):
+        elif (link_name == 'pp_2'):
             profit_percent = profit_percent_2
         else:
             profit_percent = 0
 
-        updated_order = ({'link_id' : link_id,
-                        'side' : order['side'], 
-                        'order_status': order['order_status'], 
-                        'input_quantity' : order['qty'],
-                        'price' : float(order['price']),
-                        'profit_percent' : profit_percent,
-                        'order_id' : order['order_id']
-                        })
+        updated_order = ({'link_id' : link_name,
+                            'pos' : link_id_pos,
+                            'side' : order['side'], 
+                            'order_status': order['order_status'], 
+                            'input_quantity' : order['qty'],
+                            'price' : float(order['price']),
+                            'profit_percent' : profit_percent,
+                            'order_id' : order['order_id'],
+                            'order_link_id' : order_link_id,
+                            })
 
-        new_lst.append(updated_order)
-        
-    return new_lst
-
-
-# # UNUSED: create price list for orders
-# def create_order_price_list(self, initial_price, num_of_orders, profit_percent):
-#     lst = []
-#     index = 0
-#     entry_price = initial_price
-
-#     lst.append(round(initial_price, 0))
-
-#     for x in range(num_of_orders):
-#         entry_price = calc().calc_percent_difference('long', 'entry', entry_price, profit_percent)
-#         lst.append(round(entry_price, 0))
-#     return lst
-
-
-# UNUSED: get last input quantity - use with get_closest_order_to_position
-# def get_last_input_quantity_dict(self, entry_side, order_list):
-#     closest_order = get_closest_order_to_position(entry_side, order_list)
-#     last_input_quantity_kv = []
-#     secondary_pos_input_quantity = 0
-    
-#     for x in range(len(order_list[entry_side])):
-#         price = float(order_list[x]['price'])
-#         if(price == closest_order):
-#             secondary_pos_input_quantity = order_list[x]['input_quantity']
-
-#     last_input_quantity_kv['main'] = main_pos_input_quantity = self.api.get_position_size()
-#     last_input_quantity_kv['secondary'] = secondary_pos_input_quantity
-
-#     return last_input_quantity_kv
+        return updated_order
 
 
 # UNUSED: get list differences
