@@ -4,12 +4,8 @@ import sys
 sys.path.append("..")
 from database import config
 from api.bybit_api import Bybit_Api
-import controller.comms as comms
-import database.sql_connector as conn
 # from database.database import Database as db
-from time import time, sleep
 from logic.trade_logic import Trade_Logic
-from strategies.dca import Strategy_DCA
 import asyncio
 
 api_key = config.BYBIT_TESTNET_API_KEY

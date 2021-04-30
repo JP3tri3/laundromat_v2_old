@@ -32,6 +32,37 @@ def print_closed_balance_details(last_price, open_balance, open_p_l, my_wallet_b
     print('total p_l: ')
     print(p_l_difference * last_price)
 
+def create_link_id(name_id, pos_id):
+    # name_id: first xxxx- (first 4)
+    # pos_id: 6, 7, 8 0000-xxx-
+    link_id = name_id + '-' + str(pos_id) + '-'
+    print(f'link_id: {link_id}')
+    return link_id
+
+def extract_link_id_pos(link_id):
+    # pos_id: 6, 7, 8 0000-xxx-
+
+    index = 5
+    pos_id = ''
+    attach = '-'
+
+    for x in range(3):
+        print(link_id[index])
+        if (link_id[index] != attach):
+            pos_id = pos_id + link_id[index]
+            index += 1
+        else:
+            break
+
+    print(f'pos_id: {pos_id}')
+    return int(pos_id)
+
+# def create_positioned_order_list(order_list, num_total_orders, num_entry_orders):
+#     exit_orders = num_total_orders - num_entry_orders
+
+#     for x in range(num_total_orders):
+
+    
 
 # compare lists and return difference comparing order_id
 def get_orders_not_active(init_orders_list, active_orders_list):
@@ -73,12 +104,16 @@ def get_orders_dict(entry_side, order_list):
 
 
 def get_updated_orders_list(order_list, profit_percent_1, profit_percent_2):
+    
     new_lst = []
+    
+    index = 1
+
     for order in order_list:
         order_link_id = order['order_link_id']
         link_id = order_link_id[:4]
         if (link_id == 'main'):
-            profit_percent = profit_percent_1
+            profit_percent = profit_percent_1 / index
         elif (link_id == 'pp_1'):
             profit_percent = profit_percent_1
         elif (link_id == 'pp_2'):

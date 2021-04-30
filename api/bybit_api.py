@@ -12,6 +12,7 @@ import time
 class Bybit_Api:
 
     def __init__(self, api_key, api_secret, symbol, symbol_pair, key_input):
+        # TODO: Update client for mainnet: 
         self.client = bybit.bybit(test=True, api_key=api_key, api_secret=api_secret)
         self.symbol = symbol
         self.symbol_pair = symbol_pair
@@ -152,31 +153,29 @@ class Bybit_Api:
     #TODO: Futureproof
     def generate_order_link_id(self, identifier):
         epoch_string = str(time.time())
-        order_link_id = identifier + '-' + epoch_string
+        order_link_id = identifier + epoch_string
         # letters = string.ascii_lowercase
         # order_link_id = ( ''.join(random.choice(letters) for i in range(30)) )
         return order_link_id
 
     #create multiple limit orders at perfect difference
-    async def create_multiple_limit_orders(self, num_of_orders, starting_point_price, long_short, side, input_quantity, profit_percent, reduce_only, link_id):
-        x = 0
-        if (side == 'Buy'):
-            entry_exit = 'entry'
-        else:
-            entry_exit = 'exit'
-        price = starting_point_price
-        while (x < num_of_orders):
-            price = calc().calc_percent_difference(long_short, entry_exit, price, profit_percent)
-            print(f'price: {price}')
-            self.place_order(price, 'Limit', side, input_quantity, 0, reduce_only, link_id)
-            x += 1
-            await asyncio.sleep(self.interval)
+    # async def create_multiple_limit_orders(self, num_of_orders, starting_point_price, long_short, side, input_quantity, profit_percent, reduce_only, link_id):
+    #     x = 0
+    #     if (side == 'Buy'):
+    #         entry_exit = 'entry'
+    #     else:
+    #         entry_exit = 'exit'
+    #     price = starting_point_price
+    #     while (x < num_of_orders):
+    #         price = calc().calc_percent_difference(long_short, entry_exit, price, profit_percent)
+    #         print(f'price: {price}')
+    #         self.place_order(price, 'Limit', side, input_quantity, 0, reduce_only, link_id)
+    #         x += 1
+    #         await asyncio.sleep(self.interval)
 
     def create_limit_order(self, price, side, input_quantity, stop_loss, reduce_only, link_id):
-        print(f'create_limit_order price: {price}')
         # new_num_orders = len(self.get_orders()) + 1
-        print('')
-        print('creating limit order: ')
+        print('\ncreating limit order: ')
         self.place_order(price, 'Limit', side, input_quantity, stop_loss, reduce_only, link_id)
         return self.get_order_id()
         # num_orders = len(self.get_orders())
@@ -415,3 +414,6 @@ class Bybit_Api:
             return exit_price
         else:
             return (exit_price / divisible)
+
+
+
