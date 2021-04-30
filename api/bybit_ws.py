@@ -82,97 +82,19 @@ class Bybit_WS:
             if data:
                 print(pprint.pprint(data))
                 return data
-                
-
-
-    # async def update_orders_list(self, num_of_orders, orders_list, \
-    #     secondary_entry_1_input_quantity, profit_percent_1, profit_percent_2):
-        
-    #     self.ws.subscribe_order()
-    #     order_number = 0
-    #     while (order_number < num_of_orders):
-    #         await asyncio.sleep(self.interval)
-    #         data = self.ws.get_data("order")
-    #         if data:
-    #             new_data = data[0]
-    #             if new_data['order_status'] == 'New':
-    #                 order_number += 1
-    #                 input_quantity = new_data['qty']
-    #                 if (input_quantity == secondary_entry_1_input_quantity):
-    #                     profit_percent = profit_percent_1
-    #                     name = 'secondary_1'
-    #                 else:
-    #                     profit_percent = profit_percent_2
-    #                     name = 'secondary_2'
-
-    #                 order = ({'name' : name,
-    #                                 'side' : new_data['side'], 
-    #                                 'order_status': new_data['order_status'], 
-    #                                 'input_quantity' : new_data['qty'],
-    #                                 'price' : float(new_data['price']),
-    #                                 'profit_percent' : profit_percent,
-    #                                 'order_id' : new_data['order_id']
-    #                                 })
-    #                 orders_list.append(order)
-
-    #     return orders_list
-
-
-
-    # async def update_orders_list_main_pos_exit(self, orders_list, exit_side, profit_percent):
-
+                    
+    # async def get_filled_order(self):
     #     self.ws.subscribe_order()
     #     while True:
     #         await asyncio.sleep(self.interval)
     #         data = self.ws.get_data("order")
     #         if data:
-    #             new_data = data[0]
-    #             if new_data['side'] == exit_side:
-    #                 input_quantity = new_data['qty']
-    #                 name = 'main'
-    #                 order = ({'name' : name,
-    #                                 'side' : new_data['side'], 
-    #                                 'order_status': new_data['order_status'], 
-    #                                 'input_quantity' : new_data['qty'],
-    #                                 'price' : float(new_data['price']),
-    #                                 'profit_percent' : profit_percent,
-    #                                 'order_id' : new_data['order_id']
-    #                                 })
-    #                 orders_list.append(order)
-    #                 break
-
-    #     print(pprint.pprint(orders_list))
-    #     return orders_list
-
-
-                    
-    async def get_filled_order(self):
-        self.ws.subscribe_order()
-        while True:
-            await asyncio.sleep(self.interval)
-            data = self.ws.get_data("order")
-            if data:
-                filled_order = data[0]
-                order_link_id = filled_order['order_link_id']
-                order_status = filled_order['order_status']
-                if (order_status == 'Filled'):
-                    print(f'filled order: {order_link_id}')
-                    return filled_order
-
-    async def get_new_or_changed_order(self):
-        self.ws.subscribe_order()
-        while True:
-            await asyncio.sleep(self.interval)
-            data = self.ws.get_data("order")
-            if data:
-                new_order = data[0]
-                order_link_id = new_order['order_link_id']
-                order_status = new_order['order_status']
-                print("TEST STATUS in WS Get new or changed order: ")
-                print(order_status)
-                if (order_status == 'New'):
-                    print(f'new or changed order: {order_link_id}')
-                    return new_order
+    #             filled_order = data[0]
+    #             order_link_id = filled_order['order_link_id']
+    #             order_status = filled_order['order_status']
+    #             if (order_status == 'Filled'):
+    #                 print(f'filled order: {order_link_id}')
+    #                 return filled_order
 
     async def instrument_info(self):
         self.ws.subscribe_instrument_info(symbol=self.symbol_pair)

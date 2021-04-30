@@ -5,11 +5,12 @@ from logic.calc import Calc as calc
 
 
 def initialize_orders_list(size):
-    lst = []
+    kv_dict = {}
     for i in range(size):
-        lst.append(i)
+        index = i + 1
+        kv_dict[index] =  None
     
-    return lst
+    return kv_dict
 
 def create_link_id(name_id, pos_id):
     # name_id: first xxxx- (first 4)

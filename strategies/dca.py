@@ -74,20 +74,23 @@ class Strategy_DCA:
         # starting tasks
         task_ping_timer = asyncio.create_task(self.ws.ping(0.5, 15))
         task_collect_orders = asyncio.create_task(self.collect_orders(total_entry_exit_orders, profit_percent_1, profit_percent_2))
-        # task_store_new_orders = asyncio.create_task(self.store_new_orders(total_entry_exit_orders, profit_percent_1, profit_percent_2))
         task_start_dca_multi_position = asyncio.create_task(self.dca_multi_position(main_pos_percent_of_total_quantity, 
                                                             secondary_pos_1_percent_of_total_quantity, secondary_pos_2_percent_of_total_quantity, 
                                                                 total_secondary_orders_1, secondary_orders_2, total_secondary_orders_2, percent_rollover, 
                                                                     self.max_active_positions, self.input_quantity, profit_percent_1, profit_percent_2, 
                                                                         total_entry_exit_orders, total_entry_orders, total_exit_orders))
         await task_ping_timer
-
-        # self.api.place_order(self.api.last_price() - 300, 'Limit', 'Buy', 10, 0, False, 'main-1-')
-        # self.api.place_order(self.api.last_price() - 350, 'Limit', 'Buy', 10, 0, False, 'main-3-')
-
         await task_collect_orders        
-        # await task_store_new_orders
         await task_start_dca_multi_position
+
+        # test_list = dca_logic.initialize_orders_list(12)
+
+        # print(pprint.pprint(test_list))
+
+        # test_list[1] = 'test'
+        # test_list[2] = 'test'
+
+        # print(pprint.pprint(test_list))
 
     # collect orders via ws
     async def collect_orders(self, total_entry_exit_orders, profit_percent_1, profit_percent_2):
@@ -106,19 +109,19 @@ class Strategy_DCA:
         
         order = dca_logic.get_updated_order_info(order, profit_percent_1, profit_percent_2)
         order_status = order['order_status']
-
+        key = order['pos']
         print(f'\n order status: {order_status}\n')
 
         if(order_status == 'Filled'):
             print('adding closed order to closed_orders_list')
             self.closed_orders_list.append(order)
+            self.orders_list[key] = None
             print(pprint.pprint(self.closed_orders_list))
 
         elif(order_status == 'New'):
             print('adding new or changed order to order list')
             link_id_pos = order['pos']
-            index = link_id_pos - 1
-            self.orders_list[index] = order
+            self.orders_list[key] = order
             print(pprint.pprint(self.orders_list))
 
         else:
@@ -255,18 +258,29 @@ class Strategy_DCA:
             orders_dict = dca_logic.get_orders_dict(self.entry_side, self.api.get_orders())
             print('\n in create secondary orders \n')
             #determine active & available orders
-            active_entry_orders = len(orders_dict[self.entry_side])
-            available_entry_orders = total_entry_orders - active_entry_orders
+            active_entry_orders_list = orders_dict[self.entry_side]
+            available_entry_orders = total_entry_orders - len(active_entry_orders_list)
+            orders_to_cancel = len(active_entry_orders_list) - total_entry_orders
             secondary_1_entry_price = main_pos_entry
             secondary_2_entry_price = main_pos_entry
 
-            print(f'\ncurrent active entry orders: {active_entry_orders}')
+            print(f'\ncurrent active entry orders: {active_entry_orders_list}')
             print(f'\navailable_entry_orders {available_entry_orders}')
 
             link_id_index = secondary_orders_2 + 1
-            active_orders_index = 1
+            # active_orders_index = 
             num_check = total_secondary_orders_1
             print('\nchecking for available entries: ')
+
+            for x in range(orders_to_cancel):
+                order = active_entry_orders_list[0]
+                order_id = order['order_id']
+                print(f'num orders to cancel: {len(orders_to_cance)}')
+                self.api.cancel_order(order_id)
+                orders_to_cancel -= 1
+                active_entry_orders_list.remove(order)
+
+            active_orders_index = 0
             for x in range(total_entry_orders):
                 x += 1
                 if (x == num_check):
@@ -292,19 +306,16 @@ class Strategy_DCA:
                     link_id = dca_logic.create_link_id(link_id_name, link_id_index)
                     self.api.place_order(entry_price, 'Limit', self.entry_side, input_quantity, 0, False, link_id)
 
-                elif (active_orders_index <= total_entry_orders):
+                else:
                     print(f'\nactive_entry_orders: {active_entry_orders}')
+                    print(f'active_orders_index: {active_orders_index}')
                     print(f'in update existing entry orders: x = {x}')
                     order_id = orders_dict[self.entry_side][active_orders_index]['order_id']
                     await asyncio.sleep(0)
                     self.api.change_order_price_size(entry_price, input_quantity, order_id)
                     active_orders_index +=1
-                    
-                else:
-                    print('')
-                    print('x index is out of range')
-                    print('x: ' + str(x))
-                    break
+
+
 
     #TODO: Address blank link order ID when force closing order
     async def update_secondary_orders(self, total_entry_exit_orders, profit_percent_1, profit_percent_2):
