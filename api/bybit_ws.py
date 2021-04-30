@@ -81,6 +81,8 @@ class Bybit_WS:
             data = self.ws.get_data("order")
             if data:
                 print(pprint.pprint(data))
+                return data
+                
 
 
     # async def update_orders_list(self, num_of_orders, orders_list, \

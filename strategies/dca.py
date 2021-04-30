@@ -73,43 +73,56 @@ class Strategy_DCA:
 
         # starting tasks
         task_ping_timer = asyncio.create_task(self.ws.ping(0.5, 15))
-        task_store_closed_orders = asyncio.create_task(self.store_closed_orders(profit_percent_1, profit_percent_2))
-        task_store_new_orders = asyncio.create_task(self.store_new_orders(total_entry_exit_orders, profit_percent_1, profit_percent_2))
+        task_collect_orders = asyncio.create_task(self.collect_orders(total_entry_exit_orders, profit_percent_1, profit_percent_2))
+        # task_store_new_orders = asyncio.create_task(self.store_new_orders(total_entry_exit_orders, profit_percent_1, profit_percent_2))
         task_start_dca_multi_position = asyncio.create_task(self.dca_multi_position(main_pos_percent_of_total_quantity, 
                                                             secondary_pos_1_percent_of_total_quantity, secondary_pos_2_percent_of_total_quantity, 
                                                                 total_secondary_orders_1, secondary_orders_2, total_secondary_orders_2, percent_rollover, 
                                                                     self.max_active_positions, self.input_quantity, profit_percent_1, profit_percent_2, 
                                                                         total_entry_exit_orders, total_entry_orders, total_exit_orders))
         await task_ping_timer
-        await task_store_closed_orders        
-        await task_store_new_orders
+
+        # self.api.place_order(self.api.last_price() - 300, 'Limit', 'Buy', 10, 0, False, 'main-1-')
+        # self.api.place_order(self.api.last_price() - 350, 'Limit', 'Buy', 10, 0, False, 'main-3-')
+
+        await task_collect_orders        
+        # await task_store_new_orders
         await task_start_dca_multi_position
 
-    # Store closed orders in global list
-    async def store_closed_orders(self, profit_percent_1, profit_percent_2):
-        global closed_orders_list
-
-        while True:
-            await asyncio.sleep(0.05)
-            closed_order = await self.ws.get_filled_order()
-            updated_closed_order = dca_logic.get_updated_order_info(closed_order, profit_percent_1, profit_percent_2)
-            print('adding closed order to closed_orders_list')
-            self.closed_orders_list.append(updated_closed_order)
-
-    # Store new & changed orders in global list
-    async def store_new_orders(self, total_entry_exit_orders, profit_percent_1, profit_percent_2):
-        global orders_list
+    # collect orders via ws
+    async def collect_orders(self, total_entry_exit_orders, profit_percent_1, profit_percent_2):
         
         self.orders_list = dca_logic.initialize_orders_list(total_entry_exit_orders)
+
         while True:
-            await asyncio.sleep(0.05)
-            new_order = await self.ws.get_new_or_changed_order()
-            updated_order = dca_logic.get_updated_order_info(new_order, profit_percent_1, profit_percent_2)
+            await asyncio.sleep(0)
+            order = await self.ws.get_order()
+            self.store_new_changed_filled_orders(order, profit_percent_1, profit_percent_2)
+
+    # store new, changed & filled orders in global lists
+    def store_new_changed_filled_orders(self, order, profit_percent_1, profit_percent_2):
+        global orders_list
+        global closed_orders_list
+        
+        order = dca_logic.get_updated_order_info(order, profit_percent_1, profit_percent_2)
+        order_status = order['order_status']
+
+        print(f'\n order status: {order_status}\n')
+
+        if(order_status == 'Filled'):
+            print('adding closed order to closed_orders_list')
+            self.closed_orders_list.append(order)
+            print(pprint.pprint(self.closed_orders_list))
+
+        elif(order_status == 'New'):
             print('adding new or changed order to order list')
-            link_id_pos = updated_order['pos']
+            link_id_pos = order['pos']
             index = link_id_pos - 1
-            self.orders_list[index] = updated_order
-            
+            self.orders_list[index] = order
+            print(pprint.pprint(self.orders_list))
+
+        else:
+            print('invalid order status')
 
     #TODO: Add Trade Name to order / db
     async def create_trade_record(self, closed_trade):
@@ -228,9 +241,6 @@ class Strategy_DCA:
                     num_order -= 1
                     input_quantity = input_quantity_2
                     
-                
-
-
 
     async def create_secondary_orders(self, main_pos_entry, total_secondary_orders_1, \
         secondary_orders_2, total_entry_orders, profit_percent_1, profit_percent_2, \

@@ -77,6 +77,8 @@ def get_orders_dict(entry_side, order_list):
 
 def get_updated_order_info(order, profit_percent_1, profit_percent_2):
         
+        order = order[0]
+
         order_link_id = order['order_link_id']
         link_name = order_link_id[:4]
         link_id_pos = extract_link_id_pos(order_link_id)
