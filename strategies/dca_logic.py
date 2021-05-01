@@ -1,7 +1,7 @@
 import sys
 sys.path.append("..")
 from logic.calc import Calc as calc
-
+import pprint
 
 
 def initialize_orders_list(size):
@@ -93,8 +93,8 @@ def get_updated_order_info(order, profit_percent_1, profit_percent_2):
         else:
             profit_percent = 0
 
-        updated_order = ({'link_id' : link_name,
-                            'pos' : link_id_pos,
+        updated_order = ({'link_name' : link_name,
+                            'link_id_pos' : link_id_pos,
                             'side' : order['side'], 
                             'order_status': order['order_status'], 
                             'input_quantity' : order['qty'],
@@ -106,7 +106,7 @@ def get_updated_order_info(order, profit_percent_1, profit_percent_2):
 
         return updated_order
 
-def orders_list_insert_placeholder(order, side, price):
+def orders_list_create_placeholder(order, side, price):
     print('\n inserting placeholder: \n')
     order_placeholder = order
     
@@ -115,7 +115,7 @@ def orders_list_insert_placeholder(order, side, price):
     order_placeholder['order_id'] = None
     order_placeholder['order_link_id'] = None
 
-    print(order_placeholder)
+    print(pprint.pprint(order_placeholder))
     return order_placeholder
 
 # UNUSED: get list differences
