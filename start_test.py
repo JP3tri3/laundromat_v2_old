@@ -1,8 +1,6 @@
-
-
 import sys
 sys.path.append("..")
-from database import config
+import config
 from api.bybit_api import Bybit_Api
 # from database.database import Database as db
 from logic.trade_logic import Trade_Logic

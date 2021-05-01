@@ -10,7 +10,6 @@ class Bybit_WS:
         self.symbol_pair = symbol_pair
         self.interval = 0.5
 
-
         if (test_true_false == True):
             wsURL = "wss://stream-testnet.bybit.com/realtime"
         else:

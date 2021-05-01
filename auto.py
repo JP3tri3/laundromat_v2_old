@@ -1,6 +1,6 @@
 import sys
 sys.path.append("..")
-from database import config
+import config
 from strategies.dca import Strategy_DCA
 from database.database import Database as db
 import asyncio

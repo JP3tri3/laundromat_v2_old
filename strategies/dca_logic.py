@@ -106,6 +106,17 @@ def get_updated_order_info(order, profit_percent_1, profit_percent_2):
 
         return updated_order
 
+def orders_list_insert_placeholder(order, side, price):
+    print('\n inserting placeholder: \n')
+    order_placeholder = order
+    
+    order_placeholder['side'] = side
+    order_placeholder['price'] = price
+    order_placeholder['order_id'] = None
+    order_placeholder['order_link_id'] = None
+
+    print(order_placeholder)
+    return order_placeholder
 
 # UNUSED: get list differences
 # def get_list_differences(lst_1, lst_2):
