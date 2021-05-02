@@ -100,45 +100,24 @@ def get_updated_order_info(order, profit_percent_1, profit_percent_2):
                             'input_quantity' : order['qty'],
                             'price' : float(order['price']),
                             'profit_percent' : profit_percent,
+                            'reduce_only' : order['reduce_only'], 
                             'order_id' : order['order_id'],
                             'order_link_id' : order_link_id,
                             })
 
         return updated_order
 
-def orders_list_create_placeholder(order, side, price):
+def orders_list_create_placeholder(order):
     print('\n inserting placeholder: \n')
     order_placeholder = order
-    
-    order_placeholder['side'] = side
-    order_placeholder['price'] = price
-    order_placeholder['order_id'] = None
-    order_placeholder['order_link_id'] = None
 
+    order_placeholder['order_id'] = None
+
+    print('\nplaceholder: ')
     print(pprint.pprint(order_placeholder))
+    print('')
     return order_placeholder
 
 # UNUSED: get list differences
 # def get_list_differences(lst_1, lst_2):
 #     return (list(list(set(lst_1)-set(lst_2)) + list(set(lst_2)-set(lst_1))))
-
-
-# UNUSED: check for order changes
-# def check_order_change(self, orders_list, closest_order):
-#     order_change_check = 1
-
-#     if (len(orders_list) == 0):
-#         print("Orders List Empty")
-#         order_change_check = 0
-#     else:
-#         for x in range(len(orders_list)):
-#             price = float(orders_list[x]['price'])
-#             if (price == closest_order):
-#                 order_change_check = 0
-#                 break
-
-#     if (order_change_check == 1):
-#         print("")
-#         print("ORDER CLOSED")
-
-#     return order_change_check

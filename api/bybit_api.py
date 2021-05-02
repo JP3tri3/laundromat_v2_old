@@ -137,18 +137,18 @@ class Bybit_Api:
 
             if(order_type == 'Market'):
                 print(f"sending order {price} - {side} {input_quantity} {self.symbol_pair} {order_type} {stop_loss}")
-                order = self.client.Order.Order_new(side=side, symbol=self.symbol_pair, order_type="Market",
+                self.client.Order.Order_new(side=side, symbol=self.symbol_pair, order_type="Market",
                                             qty=input_quantity, time_in_force='PostOnly', stop_loss=str(stop_loss), reduce_only=reduce_only, order_link_id=order_link_id).result()
             elif(order_type == "Limit"):
                 print(f"sending order {price} - {side} {input_quantity} {self.symbol_pair} {order_type} {stop_loss}")
-                order = self.client.Order.Order_new(side=side, symbol=self.symbol_pair, order_type="Limit",
+                self.client.Order.Order_new(side=side, symbol=self.symbol_pair, order_type="Limit",
                                             qty=input_quantity, price=price, time_in_force='PostOnly', stop_loss=str(stop_loss), reduce_only=reduce_only, order_link_id=order_link_id).result()
             else:
                 print("Invalid Order")
         except Exception as e:
             print("an exception occured - {}".format(e))
             return False
-        return order
+        return order_link_id
 
     #TODO: Futureproof
     def generate_order_link_id(self, identifier):
@@ -157,21 +157,6 @@ class Bybit_Api:
         # letters = string.ascii_lowercase
         # order_link_id = ( ''.join(random.choice(letters) for i in range(30)) )
         return order_link_id
-
-    #create multiple limit orders at perfect difference
-    # async def create_multiple_limit_orders(self, num_of_orders, starting_point_price, long_short, side, input_quantity, profit_percent, reduce_only, link_id):
-    #     x = 0
-    #     if (side == 'Buy'):
-    #         entry_exit = 'entry'
-    #     else:
-    #         entry_exit = 'exit'
-    #     price = starting_point_price
-    #     while (x < num_of_orders):
-    #         price = calc().calc_percent_difference(long_short, entry_exit, price, profit_percent)
-    #         print(f'price: {price}')
-    #         self.place_order(price, 'Limit', side, input_quantity, 0, reduce_only, link_id)
-    #         x += 1
-    #         await asyncio.sleep(self.interval)
 
     def create_limit_order(self, price, side, input_quantity, stop_loss, reduce_only, link_id):
         # new_num_orders = len(self.get_orders()) + 1
@@ -249,8 +234,11 @@ class Bybit_Api:
             return 'null'     
 
     def get_position_size(self):
-        position_result = self.get_position_result()
-        return position_result['size']
+        try:
+            position_result = self.get_position_result()
+            return position_result['size']
+        except Exception as e:
+            print("an exception occured - {}".format(e))
 
     def get_position_value(self):
         position_result = self.get_position_result()
