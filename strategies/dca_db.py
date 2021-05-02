@@ -74,7 +74,7 @@ class DCA_DB:
 
         if create_table_t_f == True:
             print('creating new active ordders table')
-            self.mycursor.execute("CREATE TABLE " +str(self.active_orders_table_name)+ " (trade_id VARCHAR(16), link_id_pos INT UNSIGNED, link_name VARCHAR(8), side VARCHAR(8), status VARCHAR(12), input_quantity INT UNSIGNED, price FLOAT UNSIGNED, profit_percent DECIMAL, link_id VARCHAR(50), order_id VARCHAR(50), time VARCHAR(50))")
+            self.mycursor.execute("CREATE TABLE " +str(self.active_orders_table_name)+ " (trade_id VARCHAR(16), link_id_pos INT UNSIGNED, link_name VARCHAR(8), side VARCHAR(8), status VARCHAR(12), input_quantity INT UNSIGNED, price FLOAT UNSIGNED, profit_percent FLOAT UNSIGNED, link_id VARCHAR(50), order_id VARCHAR(50), time VARCHAR(50))")
         else:
             print('create_table == False, not creating new table')
 
@@ -92,9 +92,9 @@ class DCA_DB:
 
     def dcamp_create_active_orders_row(self, link_id_pos):
         try:
-            query = "INSERT INTO " +str(self.active_orders_table_name)+ " () VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+            query = "INSERT INTO " +str(self.active_orders_table_name)+ " () VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
             print(query)
-            self.mycursor.execute(query,(self.trade_id, link_id_pos, 'empty', 'empty', 0, 0, 0, 'empty', 'empty', 'empty'))
+            self.mycursor.execute(query,(self.trade_id, link_id_pos, 'empty', 'empty', 'empty', 0, 0, 0, 'empty', 'empty', 'empty'))
             self.db.commit()
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
@@ -111,7 +111,7 @@ class DCA_DB:
             link_id = order['order_link_id']
             order_id = order['order_id']
 
-            query = "UPDATE " +str(self.active_orders_table_name)+ " SET link_name='" +str(link_name)+ "', side='" +str(side)+ "', status='" +str(status)+ "', input_quantity=" +str(input_quantity)+ ", price=" +str(price)+ ", profit_percent=" +str(profit_percent)+ ", link_id='" +str(link_id)+ "', order_id='" +str(order_id)+ "', time='" +str(self.time_stamp())+ "' WHERE link_id_pos=" +str(link_id_pos) 
+            query = "UPDATE " +str(self.active_orders_table_name)+ " SET link_name='" +str(link_name)+ "', side='" +str(side)+ "', profit_percent='" +str(profit_percent)+"', status='" +str(status)+ "', input_quantity=" +str(input_quantity)+ ", price=" +str(price)+ ", profit_percent=" +str(profit_percent)+ ", link_id='" +str(link_id)+ "', order_id='" +str(order_id)+ "', time='" +str(self.time_stamp())+ "' WHERE link_id_pos=" +str(link_id_pos) 
             print(query)
             self.mycursor.execute(query)
             self.db.commit()
