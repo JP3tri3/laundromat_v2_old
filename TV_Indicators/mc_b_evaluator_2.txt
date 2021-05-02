@@ -1,0 +1,960 @@
+//@version=4
+// Written by Adler from the Market Cipher Discord. WaveTrend is based off LazyBear's publically-available work on TradingView.
+
+// ~~~~~ To make this a backtestable strategy, uncomment the "strategy" line and comment the "study" line below ~~~~~
+// strategy(title="MC-B Evaluator", format=format.price, overlay=true, initial_capital=1000, calc_on_order_fills=false, slippage=0, commission_type=strategy.commission.percent, commission_value=0.075, default_qty_type=strategy.percent_of_equity, default_qty_value=100, max_bars_back=5000, calc_on_every_tick=true, process_orders_on_close=true)
+study(title="MC-B Evaluator", format=format.price, overlay=false, max_bars_back=5000)
+// ~~~~~~ Then, proceed to the very bottom of this pinescript, more instructions down there ~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+overlayCandles = input(false, title="Check this if this indicator is in your candles window", type=input.bool, group="Candle Overlay")
+volumeIndicatorMode = input(false, title="Switch to volume indicator mode (separate pane)", type=input.bool, group="Volume Indicator Mode")
+externalMfi = input(hlc3, title="Set to MC-B Mny Flow to import it", type=input.source, group="External Indicators")
+mfiOn = input(false, title="Check this after setting above to MC-B Mny Flow", type=input.bool, group="External Indicators")
+importedMfi = mfiOn ? externalMfi : na
+x1_resolution = input(title="Current Resolution", type=input.resolution, defval="", group="Multi-TimeFrame")
+x2_resolution = input(title="2nd Resolution", type=input.resolution, defval="3", group="Multi-TimeFrame")
+x3_resolution = input(title="3rd Resolution", type=input.resolution, defval="24", group="Multi-TimeFrame")
+x4_resolution = input(title="4th Resolution", type=input.resolution, defval="96", group="Multi-TimeFrame")
+
+
+// --- Helper function for retrieving previous values in multi-timeframe ---
+lastSeriesValue(series) =>
+    series[barssince(series > series[1] or series < series[1]) + 1]
+
+
+//
+// === Blue Momentum Waves === 
+//
+
+showWavetrend = input(true, "Show Wavetrend", input.bool, group="Wavetrend")
+
+// LazyBear's script, modified
+n1 = 9 
+n2 = 12 
+
+wavetrend(ap, n1, n2) =>
+    esa = ema(ap, n1)
+    d = ema(abs(ap - esa), n1)
+    ci = (ap - esa) / (0.015 * d)
+    tci = ema(ci, n2)
+    wt1 = tci
+    wt2 = sma(wt1,3)
+    crossingUp = wt1 > wt2 and lastSeriesValue(wt1) < lastSeriesValue(wt2) 
+    crossingDown = wt1 < wt2 and lastSeriesValue(wt1) > lastSeriesValue(wt2)
+    force = (wt1 - wt2)
+    [wt1, wt2, crossingUp, crossingDown, force]
+
+// Wavetrend multi-timeframe
+[x1_wt1, x1_wt2, x1_wt_crossingUp, x1_wt_crossingDown, x1_wt_force] = security(syminfo.tickerid, x1_resolution, wavetrend(hlc3, n1, n2), barmerge.gaps_off, barmerge.lookahead_on)
+[x2_wt1, x2_wt2, x2_wt_crossingUp, x2_wt_crossingDown, x2_wt_force] = security(syminfo.tickerid, x2_resolution, wavetrend(hlc3, n1, n2), barmerge.gaps_off, barmerge.lookahead_on)
+[x3_wt1, x3_wt2, x3_wt_crossingUp, x3_wt_crossingDown, x3_wt_force] = security(syminfo.tickerid, x3_resolution, wavetrend(hlc3, n1, n2), barmerge.gaps_off, barmerge.lookahead_on)
+[x4_wt1, x4_wt2, x4_wt_crossingUp, x4_wt_crossingDown, x4_wt_force] = security(syminfo.tickerid, x4_resolution, wavetrend(hlc3, n1, n2), barmerge.gaps_off, barmerge.lookahead_on)
+
+blueWave = x1_wt2 // Important enough to describe as its own variable
+plot(not overlayCandles and showWavetrend ? x1_wt1 : na, style=plot.style_area, color=#9cc8f4, title="Lt Blue Wave", transp=0)
+plot(not overlayCandles and showWavetrend ? blueWave : na, style=plot.style_area, color=#244a9a, title="Blue Wave", transp=10)
+
+// VWAP from different timeframes
+plot(not overlayCandles and showWavetrend ? x1_wt_force : na, color=color.yellow, style=plot.style_line, title="VWAP", linewidth = 2, transp=0)
+plot(not overlayCandles and showWavetrend ? x2_wt_force : na, color=color.green, style=plot.style_line, title="VWAP x2", linewidth = 2, transp=0)
+plot(not overlayCandles and showWavetrend ? x3_wt_force : na, color=color.red, style=plot.style_line, title="VWAP x3", linewidth = 2, transp=0)
+// plot(not overlayCandles and showWavetrend ? x4_wt_force : na, color=color.maroon, style=plot.style_line, title="VWAP x4", linewidth = 2, transp=0) // Uncommenting so that we have room for more plots
+
+dotColor = x1_wt_crossingDown ? color.red : color.green
+plot(
+	 not overlayCandles and showWavetrend ? x1_wt_crossingDown or x1_wt_crossingUp ? blueWave : na : na,
+	 title="Dots",
+	 style=plot.style_circles,
+	 color=dotColor,
+	 linewidth = 3,
+	 transp=20
+	 )
+
+
+//
+// === Anchor-Trigger Identification ===
+//
+
+anchorWavesSensitivity = input(title="Consider waves past __ to be anchor waves", defval=53, group="Blue Waves")
+triggerWavesSensitivity = input(title="Consider waves within __ to be trigger waves", defval=20, group="Blue Waves")
+
+x1_redDot = x1_wt_crossingDown
+x1_greenDot = x1_wt_crossingUp
+x1_upperWavesRedDot = x1_redDot and x1_wt2 > 0
+x1_lowerWavesGreenDot = x1_greenDot and x1_wt2 < 0
+x1_bearishAnchorWave = x1_redDot and x1_wt2 > anchorWavesSensitivity
+x1_bullishAnchorWave = x1_greenDot and x1_wt2 < -anchorWavesSensitivity
+x1_bearishTriggerWave = x1_redDot and x1_wt2 > -triggerWavesSensitivity and valuewhen(x1_bearishAnchorWave, x1_wt2, 1) > x1_wt2 // and inRange? <- put a range limitation in?
+x1_bullishTriggerWave = x1_greenDot and x1_wt2 < triggerWavesSensitivity and valuewhen(x1_bullishAnchorWave, x1_wt2, 1) < x1_wt2 // and inRange? <- put a range limitation in?
+x1_bearishSmallTriggerWave = x1_redDot and x1_wt2 > -triggerWavesSensitivity and valuewhen(x1_bearishAnchorWave, x1_wt2, 1) > x1_wt2 and x1_wt2 < anchorWavesSensitivity // and inRange? <- put a range limitation in?
+x1_bullishSmallTriggerWave = x1_greenDot and x1_wt2 < triggerWavesSensitivity and valuewhen(x1_bullishAnchorWave, x1_wt2, 1) < x1_wt2 and x1_wt2 > -anchorWavesSensitivity // and inRange? <- put a range limitation in?
+x1_bearishAnchorAndTriggerWave = x1_bearishAnchorWave and x1_bearishTriggerWave
+x1_bullishAnchorAndTriggerWave = x1_bullishAnchorWave and x1_bullishTriggerWave
+x1_bearishOnlyAnchorWave = x1_bearishAnchorWave and not x1_bearishTriggerWave
+x1_bullishOnlyAnchorWave = x1_bullishAnchorWave and not x1_bullishTriggerWave
+
+x2_redDot = x2_wt_crossingDown
+x2_greenDot = x2_wt_crossingUp
+x2_upperWavesRedDot = x2_redDot and x2_wt2 > 0
+x2_lowerWavesGreenDot = x2_greenDot and x2_wt2 < 0
+x2_bearishAnchorWave = x2_redDot and x2_wt2 > anchorWavesSensitivity
+x2_bullishAnchorWave = x2_greenDot and x2_wt2 < -anchorWavesSensitivity
+x2_bearishTriggerWave = x2_redDot and x2_wt2 > -triggerWavesSensitivity and valuewhen(x2_bearishAnchorWave, x2_wt2, 1) > x2_wt2 // and inRange? <- put a range limitation in?
+x2_bullishTriggerWave = x2_greenDot and x2_wt2 < triggerWavesSensitivity and valuewhen(x2_bullishAnchorWave, x2_wt2, 1) < x2_wt2 // and inRange? <- put a range limitation in?
+x2_bearishSmallTriggerWave = x2_redDot and x2_wt2 > -triggerWavesSensitivity and valuewhen(x2_bearishAnchorWave, x2_wt2, 1) > x2_wt2 and x2_wt2 < anchorWavesSensitivity // and inRange? <- put a range limitation in?
+x2_bullishSmallTriggerWave = x2_greenDot and x2_wt2 < triggerWavesSensitivity and valuewhen(x2_bullishAnchorWave, x2_wt2, 1) < x2_wt2 and x2_wt2 > -anchorWavesSensitivity // and inRange? <- put a range limitation in?
+x2_bearishAnchorAndTriggerWave = x2_bearishAnchorWave and x2_bearishTriggerWave
+x2_bullishAnchorAndTriggerWave = x2_bullishAnchorWave and x2_bullishTriggerWave
+x2_bearishOnlyAnchorWave = x2_bearishAnchorWave and not x2_bearishTriggerWave
+x2_bullishOnlyAnchorWave = x2_bullishAnchorWave and not x2_bullishTriggerWave
+
+x3_redDot = x3_wt_crossingDown
+x3_greenDot = x3_wt_crossingUp
+x3_upperWavesRedDot = x3_redDot and x3_wt2 > 0
+x3_lowerWavesGreenDot = x3_greenDot and x3_wt2 < 0
+x3_bearishAnchorWave = x3_redDot and x3_wt2 > anchorWavesSensitivity
+x3_bullishAnchorWave = x3_greenDot and x3_wt2 < -anchorWavesSensitivity
+x3_bearishTriggerWave = x3_redDot and x3_wt2 > -triggerWavesSensitivity and valuewhen(x3_bearishAnchorWave, x3_wt2, 1) > x3_wt2 // and inRange? <- put a range limitation in?
+x3_bullishTriggerWave = x3_greenDot and x3_wt2 < triggerWavesSensitivity and valuewhen(x3_bullishAnchorWave, x3_wt2, 1) < x3_wt2 // and inRange? <- put a range limitation in?
+x3_bearishSmallTriggerWave = x3_redDot and x3_wt2 > -triggerWavesSensitivity and valuewhen(x3_bearishAnchorWave, x3_wt2, 1) > x3_wt2 and x3_wt2 < anchorWavesSensitivity // and inRange? <- put a range limitation in?
+x3_bullishSmallTriggerWave = x3_greenDot and x3_wt2 < triggerWavesSensitivity and valuewhen(x3_bullishAnchorWave, x3_wt2, 1) < x3_wt2 and x3_wt2 > -anchorWavesSensitivity // and inRange? <- put a range limitation in?
+x3_bearishAnchorAndTriggerWave = x3_bearishAnchorWave and x3_bearishTriggerWave
+x3_bullishAnchorAndTriggerWave = x3_bullishAnchorWave and x3_bullishTriggerWave
+x3_bearishOnlyAnchorWave = x3_bearishAnchorWave and not x3_bearishTriggerWave
+x3_bullishOnlyAnchorWave = x3_bullishAnchorWave and not x3_bullishTriggerWave
+
+x4_redDot = x4_wt_crossingDown
+x4_greenDot = x4_wt_crossingUp
+x4_upperWavesRedDot = x4_redDot and x4_wt2 > 0
+x4_lowerWavesGreenDot = x3_greenDot and x4_wt2 < 0
+x4_bearishAnchorWave = x4_redDot and x4_wt2 > anchorWavesSensitivity
+x4_bullishAnchorWave = x4_greenDot and x4_wt2 < -anchorWavesSensitivity
+x4_bearishTriggerWave = x4_redDot and x4_wt2 > -triggerWavesSensitivity and valuewhen(x4_bearishAnchorWave, x4_wt2, 1) > x4_wt2 // and inRange? <- put a range limitation in?
+x4_bullishTriggerWave = x4_greenDot and x4_wt2 < triggerWavesSensitivity and valuewhen(x4_bullishAnchorWave, x4_wt2, 1) < x4_wt2 // and inRange? <- put a range limitation in?
+x4_bearishSmallTriggerWave = x4_redDot and x4_wt2 > -triggerWavesSensitivity and valuewhen(x4_bearishAnchorWave, x4_wt2, 1) > x4_wt2 and x4_wt2 < anchorWavesSensitivity // and inRange? <- put a range limitation in?
+x4_bullishSmallTriggerWave = x4_greenDot and x4_wt2 < triggerWavesSensitivity and valuewhen(x4_bullishAnchorWave, x4_wt2, 1) < x4_wt2 and x4_wt2 > -anchorWavesSensitivity // and inRange? <- put a range limitation in?
+x4_bearishAnchorAndTriggerWave = x4_bearishAnchorWave and x4_bearishTriggerWave
+x4_bullishAnchorAndTriggerWave = x4_bullishAnchorWave and x4_bullishTriggerWave
+x4_bearishOnlyAnchorWave = x4_bearishAnchorWave and not x4_bearishTriggerWave
+x4_bullishOnlyAnchorWave = x4_bullishAnchorWave and not x4_bullishTriggerWave
+
+anchorColor = x1_bearishAnchorWave ? color.red : color.green
+plotshape(
+	 not overlayCandles and showWavetrend ? (x1_bearishAnchorWave and not x1_bearishTriggerWave) or (x1_bullishAnchorWave and not x1_bullishTriggerWave) ? blueWave : na : na,
+	 title="Anchor Label",
+	 text=" A ",
+	 style=shape.labelup,
+	 location=location.absolute,
+	 color=anchorColor,
+	 textcolor=color.white,
+	 transp=50
+	 )
+	 
+triggerColor = x1_bearishTriggerWave ? color.red : color.green
+plotshape(
+	 not overlayCandles and showWavetrend ? (x1_bearishTriggerWave and not x1_bearishAnchorWave) or (x1_bullishTriggerWave and not x1_bullishAnchorWave) ? blueWave : na : na,
+	 title="Trigger Label",
+	 text=" T ",
+	 style=shape.labelup,
+	 location=location.absolute,
+	 color=triggerColor,
+	 textcolor=color.white,
+	 transp=50
+	 )
+	 
+anchorAndTriggerColor = x1_bearishAnchorAndTriggerWave ? color.red : color.green
+plotshape(
+	 not overlayCandles and showWavetrend ? x1_bearishAnchorAndTriggerWave or x1_bullishAnchorAndTriggerWave ? blueWave : na : na,
+	 title="A+T Label",
+	 text=" A+T ",
+	 style=shape.labelup,
+	 location=location.absolute,
+	 color=anchorAndTriggerColor,
+	 textcolor=color.white,
+	 transp=50
+	 )
+
+	 
+//
+// === Money Flow Index === 
+//
+
+showMfi = input(true, "Show MFI", input.bool, group="Money Flow Index")
+
+mfiSmaLength = input(50, title="SMA curve length", group="Money Flow Index")
+mfiLength = 58
+mfiUpper = sum(volume * (change(hlc3) <= 0 ? 0 : hlc3), mfiLength)
+mfiLower = sum(volume * (change(hlc3) >= 0 ? 0 : hlc3), mfiLength)
+_mfiRsi(mfiUpper, mfiLower) =>
+    if mfiLower == 0
+        100
+    if mfiUpper == 0
+        0
+	100.0 - (100.0 / (1.0 + mfiUpper / mfiLower))
+
+mf = _mfiRsi(mfiUpper, mfiLower)
+scaled_mfi = (mf - 50) * 1.4
+mfi = na(importedMfi) ? scaled_mfi : importedMfi
+
+// MFI multi-timeframe
+x1_mfi = security(syminfo.tickerid, x1_resolution, mfi, barmerge.gaps_off, barmerge.lookahead_on)
+x2_mfi = security(syminfo.tickerid, x2_resolution, mfi, barmerge.gaps_off, barmerge.lookahead_on)
+x3_mfi = security(syminfo.tickerid, x3_resolution, mfi, barmerge.gaps_off, barmerge.lookahead_on)
+x4_mfi = security(syminfo.tickerid, x4_resolution, mfi, barmerge.gaps_off, barmerge.lookahead_on)
+x1_mfiSma = security(syminfo.tickerid, x1_resolution, sma(mfi, mfiSmaLength), barmerge.gaps_off, barmerge.lookahead_on)
+x2_mfiSma = security(syminfo.tickerid, x2_resolution, sma(mfi, mfiSmaLength), barmerge.gaps_off, barmerge.lookahead_on)
+x3_mfiSma = security(syminfo.tickerid, x3_resolution, sma(mfi, mfiSmaLength), barmerge.gaps_off, barmerge.lookahead_on)
+x4_mfiSma = security(syminfo.tickerid, x4_resolution, sma(mfi, mfiSmaLength), barmerge.gaps_off, barmerge.lookahead_on)
+
+mfiRedToGreen = crossover(x1_mfi, 0)
+mfiGreenToRed = crossunder(x1_mfi, 0)
+mfiColor = x1_mfi > 0 ? color.green : color.red
+
+plot(not overlayCandles and showMfi ? x1_mfi : na, "MFI", color=mfiColor, linewidth = 2, transp=60, style=plot.style_area)
+plot(not overlayCandles and showMfi ? x1_mfiSma : na, "MFI SMA", color=color.white, transp=50, style=plot.style_circles)
+
+
+// ~~~ WORK IN PROGRESS TO FIX MULTI TF MFI ~~~
+// mfiSmaLength = input(50, title="SMA curve length", group="MFI")
+// mfiLength = 58
+
+// _mfi(importedMfi, vol, price, len, smaLen) =>
+//     mfiUpper = sum(vol * (change(price) <= 0 ? 0 : price), len)
+//     mfiLower = sum(vol * (change(price) >= 0 ? 0 : price), len)    
+//     if mfiLower == 0
+//         100
+//     if mfiUpper == 0
+//         0
+// 	mfi = importedMfi == false ? (100.0 - (100.0 / (1.0 + mfiUpper / mfiLower)) - 50) * 1.4 : importedMfi
+// 	mfiSma = sma(mfi, smaLen)
+// 	[mfi, mfiSma]
+
+// // THIS IS WHATS BROKEN
+// mfiSource = mfiOn ? _mfi(importedMfi, volume, hlc3, mfiLength, mfiSmaLength) : _mfi(false, volume, hlc3, mfiLength, mfiSmaLength)
+
+// // MFI multi-timeframe
+// [x1_mfi, x1_mfiSma] = security(syminfo.tickerid, x1_resolution, mfiSource, barmerge.gaps_off, barmerge.lookahead_on)
+// [x2_mfi, x2_mfiSma] = security(syminfo.tickerid, x2_resolution, mfiSource, barmerge.gaps_off, barmerge.lookahead_on)
+// [x3_mfi, x3_mfiSma] = security(syminfo.tickerid, x3_resolution, mfiSource, barmerge.gaps_off, barmerge.lookahead_on)
+// [x4_mfi, x4_mfiSma] = security(syminfo.tickerid, x4_resolution, mfiSource, barmerge.gaps_off, barmerge.lookahead_on)
+
+// mfiRedToGreen = crossover(x1_mfi, 0)
+// mfiGreenToRed = crossunder(x1_mfi, 0)
+// mfiColor = x1_mfi > 0 ? color.green : color.red
+// plot(not overlayCandles and showMfi ? x1_mfi : na, "MFI", color=mfiColor, linewidth = 2, transp=60, style=plot.style_area)
+// plot(not overlayCandles and showMfi ? x1_mfiSma : na, "MFI SMA", color=color.white, transp=50, style=plot.style_circles)
+// ~~~
+
+
+//
+// === Market Cipher A EMA ribbons and symbols ===
+//
+
+cipherA() =>
+    cipherEma1 = ema(close, 5)
+    cipherEma2 = ema(close, 11)
+    cipherEma3 = ema(close, 15)
+    cipherEma4 = ema(close, 18)
+    cipherEma5 = ema(close, 21)
+    cipherEma6 = ema(close, 25)
+    cipherEma8 = ema(close, 33)
+    cipherEmaCrossover = crossover(cipherEma6, cipherEma8)
+    cipherEmaCrossunder = crossunder(cipherEma6, cipherEma8)
+    cipherABlueTriangle = crossover(cipherEma1, cipherEma6)
+    cipherAGreenDot = crossover(cipherEma2, cipherEma8)
+    cipherARedX = crossunder(cipherEma1, cipherEma2)
+    [cipherEma1, cipherEma2, cipherEma3, cipherEma4, cipherEma5, cipherEma6, cipherEma8, cipherEmaCrossover, cipherEmaCrossunder, cipherABlueTriangle, cipherAGreenDot, cipherARedX]
+  
+[x1_cipherEma1, x1_cipherEma2, x1_cipherEma3, x1_cipherEma4, x1_cipherEma5, x1_cipherEma6, x1_cipherEma8, x1_cipherEmaCrossover, x1_cipherEmaCrossunder, x1_cipherABlueTriangle, x1_cipherAGreenDot, x1_cipherARedX] = security(syminfo.tickerid, x1_resolution, cipherA(), barmerge.gaps_off, barmerge.lookahead_on)
+[x2_cipherEma1, x2_cipherEma2, x2_cipherEma3, x2_cipherEma4, x2_cipherEma5, x2_cipherEma6, x2_cipherEma8, x2_cipherEmaCrossover, x2_cipherEmaCrossunder, x2_cipherABlueTriangle, x2_cipherAGreenDot, x2_cipherARedX] = security(syminfo.tickerid, x2_resolution, cipherA(), barmerge.gaps_off, barmerge.lookahead_on)
+[x3_cipherEma1, x3_cipherEma2, x3_cipherEma3, x3_cipherEma4, x3_cipherEma5, x3_cipherEma6, x3_cipherEma8, x3_cipherEmaCrossover, x3_cipherEmaCrossunder, x3_cipherABlueTriangle, x3_cipherAGreenDot, x3_cipherARedX] = security(syminfo.tickerid, x3_resolution, cipherA(), barmerge.gaps_off, barmerge.lookahead_on)  
+[x4_cipherEma1, x4_cipherEma2, x4_cipherEma3, x4_cipherEma4, x4_cipherEma5, x4_cipherEma6, x4_cipherEma8, x4_cipherEmaCrossover, x4_cipherEmaCrossunder, x4_cipherABlueTriangle, x4_cipherAGreenDot, x4_cipherARedX] = security(syminfo.tickerid, x4_resolution, cipherA(), barmerge.gaps_off, barmerge.lookahead_on)  
+
+cipherABloodDiamond = x1_redDot and x1_cipherARedX // Multi-TF Blood Diamond not yet supported
+
+
+//
+// === Market Cipher SR VWAP ===
+//
+
+showSrVwap = input(true, "Show SR-VWAP (Candle Overlay)", input.bool, group="SR-VWAP")
+
+srvwap = vwap(hlc3)
+plot(overlayCandles and showSrVwap ? srvwap : na, "SR-VWAP", color=color.white, linewidth=2)
+  
+
+//
+// === RSI and Stoch ===
+//
+
+showRsiOrStoch = input(true, "Show RSI/Stoch", input.bool, group="RSI and Stoch")
+rsiOrStochDisplay = input(title="Check to plot RSI. Uncheck to plot Stoch.", type=input.bool, defval=true, group="RSI and Stoch")
+
+rsiSource = sma(stoch(close, high, low, 40), 2)
+stochSource = sma(stoch(close, high, low, 81), 2)
+
+x1_rsi = security(syminfo.tickerid, x1_resolution, rsiSource, barmerge.gaps_off, barmerge.lookahead_on)
+x2_rsi = security(syminfo.tickerid, x2_resolution, rsiSource, barmerge.gaps_off, barmerge.lookahead_on)
+x3_rsi = security(syminfo.tickerid, x3_resolution, rsiSource, barmerge.gaps_off, barmerge.lookahead_on)
+x1_stoch = security(syminfo.tickerid, x1_resolution, stochSource, barmerge.gaps_off, barmerge.lookahead_on)
+x2_stoch = security(syminfo.tickerid, x2_resolution, stochSource, barmerge.gaps_off, barmerge.lookahead_on)
+x3_stoch = security(syminfo.tickerid, x3_resolution, stochSource, barmerge.gaps_off, barmerge.lookahead_on)
+
+stochColor = x1_stoch >= x1_rsi ? color.red : color.green
+rsiOrStochColor = rsiOrStochDisplay ? color.purple : stochColor
+plot(not overlayCandles and showRsiOrStoch ? rsiOrStochDisplay ? x1_rsi : x1_stoch : na, "RSI or Stoch", color=rsiOrStochColor)
+
+
+// //
+// // === FLI (Follow the Line Indicator) === 
+// // 
+
+// fLIBBperiod      = input(defval = 21,     title = "BB Period",    type = input.integer, minval = 1, group = "Follow the Line Indicator (FLI)")
+// fLIBBdeviations  = input(defval = 1.00,     title = "BB Deviations",    type = input.float, minval = 0.1, step=0.05, group = "Follow the Line Indicator (FLI)")
+// fLIUseATRfilter  = input(defval = true, title = "ATR Filter",  type = input.bool, group = "Follow the Line Indicator (FLI)")
+// fLIATRperiod     = input(defval = 5,     title = "ATR Period",    type = input.integer, minval = 1, group = "Follow the Line Indicator (FLI)")
+
+// fLIBBUpper=sma (close,fLIBBperiod)+stdev(close, fLIBBperiod)*fLIBBdeviations
+// fLIBBLower=sma (close,fLIBBperiod)-stdev(close, fLIBBperiod)*fLIBBdeviations
+// fLIBBSignal = close>fLIBBUpper? 1 : close<fLIBBLower? -1 : 0
+
+// fLITrendLine = 0.0
+// fLIiTrend = 0.0
+
+// if fLIBBSignal == 1 and fLIUseATRfilter == 1
+//     fLITrendLine:=low-atr(fLIATRperiod)
+//     if fLITrendLine<fLITrendLine[1] 
+//         fLITrendLine:=fLITrendLine[1]
+// if fLIBBSignal == -1 and fLIUseATRfilter == 1
+//     fLITrendLine:=high+atr(fLIATRperiod)
+//     if fLITrendLine>fLITrendLine[1]
+//         fLITrendLine:=fLITrendLine[1]
+// if fLIBBSignal == 0 and fLIUseATRfilter == 1
+//     fLITrendLine:=fLITrendLine[1]
+
+// if fLIBBSignal == 1 and fLIUseATRfilter == 0
+//     fLITrendLine:=low
+//     if fLITrendLine<fLITrendLine[1] 
+//         fLITrendLine:=fLITrendLine[1]
+// if fLIBBSignal == -1 and fLIUseATRfilter == 0
+//     fLITrendLine:=high
+//     if fLITrendLine>fLITrendLine[1]
+//         fLITrendLine:=fLITrendLine[1]
+// if fLIBBSignal == 0 and fLIUseATRfilter == 0
+//     fLITrendLine:=fLITrendLine[1]
+
+// fLIiTrend:=fLIiTrend[1]
+// if fLITrendLine>fLITrendLine[1] 
+//     fLIiTrend:=1
+// if fLITrendLine<fLITrendLine[1] 
+//     fLIiTrend:=-1
+
+// fLIbuy = fLIiTrend > 0
+// fLIsell = fLIiTrend < 0
+
+// plot(overlayCandles ? fLITrendLine : na, color=fLIiTrend > 0 ? color.aqua : color.orange, style=plot.style_line, linewidth=2, transp=0, title="FLI Trend Line") 
+
+
+//
+// === Wolfpack ===
+//
+
+showWolfpack = input(true, "Show Wolfpack", input.bool, group="Wolfpack")
+wolfpackShowMultiTF = input(false, "Plot x2 and x3 timeframes on chart", input.bool, group="Wolfpack")
+wolfpackScale = input(100, minval=1, title="Wolfpack Scale (%)", group="Wolfpack")
+
+wolfpack() =>
+    ema1 = ema(close, 3) 
+    ema2 = ema(close, 8) 
+    wolfpack = (ema1 - ema2) * 1.001 * (wolfpackScale / 100)
+
+x1_wolfpack = security(syminfo.tickerid, x1_resolution, wolfpack(), barmerge.gaps_off, barmerge.lookahead_on)
+x2_wolfpack = security(syminfo.tickerid, x2_resolution, wolfpack(), barmerge.gaps_off, barmerge.lookahead_on)
+x3_wolfpack = security(syminfo.tickerid, x3_resolution, wolfpack(), barmerge.gaps_off, barmerge.lookahead_on)
+
+x1_wolfpackCrossOver = crossover(x1_wolfpack, 0)
+x1_wolfpackCrossUnder = crossunder(x1_wolfpack, 0)
+
+x1_wolfpack_color = x1_wolfpack > 0 ? color.green : color.red
+x2_wolfpack_color = x2_wolfpack > 0 ? color.yellow : color.orange
+x3_wolfpack_color = x3_wolfpack > 0 ? color.navy : color.maroon
+plot(not overlayCandles and showWolfpack ? x1_wolfpack : na, color=x1_wolfpack_color, title="Wolfpack", linewidth=1)
+plot(not overlayCandles and showWolfpack ? wolfpackShowMultiTF ? x2_wolfpack : na : na, color=x2_wolfpack_color, title="Wolfpack x2", linewidth=1, transp=0)
+plot(not overlayCandles and showWolfpack ? wolfpackShowMultiTF ? x3_wolfpack : na : na, color=x3_wolfpack_color, title="Wolfpack x3", linewidth=1, transp=0)
+
+
+//
+// === SuperTrend === 
+// === Taken from Nrrd's strat. https://www.tradingview.com/v/VLWVV7tH/ ===
+// 
+
+// showSuperTrend = input(true, "Show SuperTrend (Candle Overlay)", input.bool, group="SuperTrend")
+STlength = input(title="ATR Period", type=input.integer, defval=22, group="SuperTrend")
+STmult = input(title="ATR Multiplier", type=input.float, step=0.1, defval=3, group="SuperTrend")
+STsrc = hl2 // input(title="Source", type=input.source, defval=hl2, group="SuperTrend")
+STwicks = input(title="Take Wicks into Account ?", type=input.bool, defval=true, group="SuperTrend")
+
+STatr = STmult * atr(STlength)
+SThighPrice = STwicks ? high : close
+STlowPrice = STwicks ? low : close
+STdoji4price = open == close and open == low and open == high
+
+STlongStop = STsrc - STatr
+STlongStopPrev = nz(STlongStop[1], STlongStop)
+STshortStop = STsrc + STatr
+STshortStopPrev = nz(STshortStop[1], STshortStop)
+
+if STlongStop > 0
+    if STdoji4price
+        STlongStop := STlongStopPrev
+    else
+        STlongStop := (STlowPrice[1] > STlongStopPrev ? max(STlongStop, STlongStopPrev) : STlongStop)
+else
+    STlongStop := STlongStopPrev
+
+if STshortStop > 0
+    if STdoji4price
+        STshortStop := STshortStopPrev
+    else
+        STshortStop := (SThighPrice[1] < STshortStopPrev ? min(STshortStop, STshortStopPrev) : STshortStop)
+else
+    STshortStop := STshortStopPrev
+
+var int STdir = 1
+STdir :=
+         STdir == -1 and SThighPrice > STshortStopPrev ? 1 :
+         STdir == 1 and STlowPrice < STlongStopPrev ? -1 :
+         STdir
+
+STbuySignal = STdir == 1 and STdir[1] == -1
+STsellSignal = STdir == -1 and STdir[1] == 1
+STchangeCond = STdir != STdir[1]
+
+// Uncomment these to see SuperTrend plots //
+// STlongStopPlot = plot(STdir == 1 and overlayCandles and showSuperTrend ? STlongStop : na, title="SuperTrend Long Stop", style=plot.style_linebr, linewidth=2, color=color.green)
+// STshortStopPlot = plot(STdir == -1 and overlayCandles and showSuperTrend ? STshortStop : na, title="SuperTrend Short Stop", style=plot.style_linebr, linewidth=2, color=color.red)
+// plotshape(STbuySignal and overlayCandles and showSuperTrend ? STlongStop : na, title="SuperTrend Long Stop Start", location=location.absolute, style=shape.circle, size=size.tiny, color=color.green, transp=0)
+// plotshape(STsellSignal and overlayCandles and showSuperTrend ? STshortStop : na, title="SuperTrend Short Stop Start", location=location.absolute, style=shape.circle, size=size.tiny, color=color.red, transp=0)
+
+
+//
+// === Open/Close indicator ===
+// === https://www.tradingview.com/script/B246IH1p-Open-Close-Cross-Indicator-cerebralacestar/ ===
+//
+
+showOCCCandleOverlay = input(true, "Show OCC (Candle Overlay)", input.bool, group="Open Close Crossovers (OCC)")
+showOCCBlueWaveOverlay = input(true, "Show OCC (Blue Waves Overlay)", input.bool, group="Open Close Crossovers (OCC)")
+openCloseLength = input(defval = 7, title ="Length", group="Open Close Crossovers (OCC)") // Nrrd=10
+openCloseAtrPeriod = input(defval = 30, title ="ATR Length", group="Open Close Crossovers (OCC)") // Nrrd=20
+openCloseAtrMultiplier = input(defval = 0.1, title ="ATR Multiplier", step = 0.01, group="Open Close Crossovers (OCC)")
+
+occ() =>
+    closeSeries = ema(close, openCloseLength)
+    openSeries = ema(open, openCloseLength)
+    openCloseAtr = atr(openCloseAtrPeriod)
+    openCloseLongTrend = closeSeries > openSeries + openCloseAtrMultiplier * openCloseAtr
+    openCloseShortTrend = closeSeries < openSeries - openCloseAtrMultiplier * openCloseAtr
+    openCloseTrendReversalZone = not openCloseLongTrend and not openCloseShortTrend
+    [closeSeries, openSeries, openCloseLongTrend, openCloseShortTrend, openCloseTrendReversalZone]
+
+[x1_closeSeries, x1_openSeries, x1_openCloseLongTrend, x1_openCloseShortTrend, x1_openCloseTrendReversalZone] = security(syminfo.tickerid, x1_resolution, occ(), barmerge.gaps_off, barmerge.lookahead_on)
+[x2_closeSeries, x2_openSeries, x2_openCloseLongTrend, x2_openCloseShortTrend, x2_openCloseTrendReversalZone] = security(syminfo.tickerid, x2_resolution, occ(), barmerge.gaps_off, barmerge.lookahead_on)
+[x3_closeSeries, x3_openSeries, x3_openCloseLongTrend, x3_openCloseShortTrend, x3_openCloseTrendReversalZone] = security(syminfo.tickerid, x3_resolution, occ(), barmerge.gaps_off, barmerge.lookahead_on)
+
+openCloseTrendColor = x1_openCloseLongTrend ? color.green : x1_openCloseShortTrend ? color.red : color.yellow
+
+plot(not overlayCandles and showOCCBlueWaveOverlay ? x1_wt2 : na, title="OCC", color=openCloseTrendColor, linewidth = 2, style = plot.style_line, transp = 20)
+closePlot = plot(overlayCandles and showOCCCandleOverlay ? x1_closeSeries : na, title="OCC Close", color=openCloseTrendColor, linewidth = 2, style = plot.style_line, transp = 20)
+openPlot = plot(overlayCandles and showOCCCandleOverlay ? x1_openSeries : na, title="OCC Open", color=openCloseTrendColor, linewidth = 2, style = plot.style_line, transp = 20)
+fill(closePlot, openPlot, color=openCloseTrendColor,transp=80)
+
+
+//
+// === Linear Regression ===
+// === https://www.tradingview.com/script/V7OVP5LE-Lnear-Regression/ ===
+//
+
+showLinReg = input(false, "Show LinReg (Candle Overlay)", input.bool, group="Linear Regression")
+linRegSource = close
+linRegDefaultLength = input(100, "Default Length", minval=1, group="Linear Regression") 
+linRegMinimumLength = input(30, "Minimum Length (useful when using Custom Lengths)", minval=10, group="Linear Regression") 
+linRegOffset = 0 // input(0, "Offset", minval=0, group="Linear Regression")
+linRegDev = input(2.0, "Deviation", group="Linear Regression")
+linRegSlopeTrendSensitivity = input(20, "Trend angle sensitivity (degrees)", group="Linear Regression")
+linRegUseCustomLength = input(false, "Use Custom Length", input.bool, group="Linear Regression")
+linRegCustomLengthPoint = input("x1 Anchor waves", "Custom Length Point", input.string, group="Linear Regression", options=["x1 Anchor waves", "x2 Anchor waves", "x3 Anchor waves", "Cipher A EMA 11/33 crosses", "Cipher A EMA 25/33 crosses", "OCC crosses", "x1 MFI crosses"])
+linRegUseResolution = input(false, "Use Different Resolution (NOTE: Can't use Custom Length with this!)", input.bool, group="Linear Regression")
+linRegResolution = input(title="Resolution", type=input.resolution, defval="", group="Linear Regression")
+
+var float linRegLength = linRegDefaultLength
+var float linRegCustomLength = linRegDefaultLength
+
+if linRegUseCustomLength and not linRegUseResolution
+    if linRegCustomLengthPoint == "x1 Anchor waves"
+        linRegCustomLength := barssince(x1_bullishAnchorWave or x1_bearishAnchorWave)
+    else if linRegCustomLengthPoint == "x2 Anchor waves"
+        linRegCustomLength := barssince(x2_bullishAnchorWave or x2_bearishAnchorWave)
+    else if linRegCustomLengthPoint == "x3 Anchor waves"
+        linRegCustomLength := barssince(x3_bullishAnchorWave or x3_bearishAnchorWave)
+    else if linRegCustomLengthPoint == "Cipher A EMA 11/33 crosses"
+        linRegCustomLength := barssince(cross(x1_cipherEma2, x1_cipherEma8))
+    else if linRegCustomLengthPoint == "Cipher A EMA 25/33 crosses"
+        linRegCustomLength := barssince(x1_cipherEmaCrossover or x1_cipherEmaCrossunder)
+    else if linRegCustomLengthPoint == "OCC crosses"
+        linRegCustomLength := barssince((x1_openCloseLongTrend[1] and not x1_openCloseLongTrend) or (x1_openCloseShortTrend[1] and not x1_openCloseShortTrend))
+    else if linRegCustomLengthPoint == "x1 MFI crosses"
+        linRegCustomLength := barssince(mfiRedToGreen or mfiGreenToRed)
+
+if linRegUseCustomLength and linRegCustomLength > 5 and not linRegUseResolution
+    linRegLength := max(linRegMinimumLength, linRegCustomLength)
+
+linReg = linRegUseResolution ? security(syminfo.tickerid, linRegResolution!="" ? linRegResolution : timeframe.period, linreg(linRegSource, linRegDefaultLength, linRegOffset), barmerge.gaps_off, barmerge.lookahead_on) : linreg(linRegSource, int(linRegLength), linRegOffset) 
+linReg_p = linRegUseResolution ? security(syminfo.tickerid, linRegResolution!="" ? linRegResolution : timeframe.period, linreg(linRegSource, linRegDefaultLength, linRegOffset + 1), barmerge.gaps_off, barmerge.lookahead_on) : linreg(linRegSource, int(linRegLength), linRegOffset + 1)
+linRegSlope = linReg - linReg_p
+linRegIntercept = linReg - bar_index * linRegSlope
+linRegDeviationSum = 0.0
+
+for i = 0 to linRegLength - 1
+    linRegDeviationSum := linRegDeviationSum + pow(linRegSource[i] - (linRegSlope * (bar_index - i) + linRegIntercept), 2)  
+
+linRegDeviation = sqrt(linRegDeviationSum / int(linRegLength) )
+x1 = bar_index - int(linRegLength)
+x2 = bar_index
+y1 = linRegSlope * (bar_index - int(linRegLength)) + linRegIntercept
+y2 = linReg
+linRegSlopeDegrees = atan((y2 - y1) / (x2 - x1)) * 57.29578 // radians to degrees
+linRegSlopeDegreesLong = linRegSlopeDegrees > linRegSlopeTrendSensitivity
+linRegSlopeDegreesShort = linRegSlopeDegrees < -linRegSlopeTrendSensitivity
+linRegSlopeDegreesColor = linRegSlopeDegreesLong ? color.green : linRegSlopeDegreesShort ? color.red : color.white
+linRegUpper = linRegDeviation * linRegDev + y2
+linRegLower = -linRegDeviation * linRegDev + y2
+linRegLong = low < linRegLower
+linRegShort = high > linRegUpper
+
+if overlayCandles and showLinReg
+    line b = line.new(x1, y1, x2, y2, xloc.bar_index, extend.right, color=linRegSlopeDegreesColor)
+    line.delete(b[1])
+    line dp = line.new(x1, linRegDeviation * linRegDev + y1, x2, linRegDeviation * linRegDev + y2, xloc.bar_index, extend.right, linRegSlopeDegreesColor)
+    line.delete(dp[1])
+    line dm = line.new(x1, -linRegDeviation * linRegDev + y1, x2, -linRegDeviation * linRegDev + y2, xloc.bar_index, extend.right, linRegSlopeDegreesColor)
+    line.delete(dm[1])
+    if barstate.islast and overlayCandles
+        label linRegLabel = label.new(time, linReg, text=tostring(linRegSlopeDegrees, "#.##") + "°",color=linRegSlopeDegreesColor, xloc=xloc.bar_time, style=label.style_label_left, textcolor=color.black)
+        label.delete(linRegLabel[1])
+
+// These plots show historical lingreg lines over time // 
+// plot(overlayCandles and showLinReg ? linReg : na, "LinReg Basis", color=linRegSlopeDegreesColor, transp=50)
+// plot(overlayCandles and showLinReg ? linRegUpper : na, "LinReg Upper", color=linRegSlopeDegreesColor, transp=50)
+// plot(overlayCandles and showLinReg ? linRegLower : na, "LinReg Lower", color=linRegSlopeDegreesColor, transp=50)
+
+
+//
+// === LRMOM ===
+// === From Nrrd's code, taken from https://www.tradingview.com/script/o5PsCJVf-Momentum-LinearReg/ ===
+//
+
+showLrmom = input(true, "Show LRMOM", input.bool, group="LRMOM")
+lrmomResolution = input(title="Resolution", type=input.resolution, defval="", group="LRMOM")
+lrmomScale = input(100, minval=1, title="LRMOM Scale (%)", step=1, group="LRMOM") // 25?
+lrmomLen = input(title="Momentum Length", defval=15, group="LRMOM")
+lrmomLrPeriod = input(title="Linear Regression Period", defval=40, group="LRMOM")
+lrmomAtrPeriod = input(defval = 30, title ="Smoothing: ATR Length", group="LRMOM")
+lrmomAtrMultiplier = input(defval = 0, title ="Smoothing: ATR Multiplier", step = 0.01, group="LRMOM")
+
+lrmomAtr = security(syminfo.tickerid, lrmomResolution, atr(lrmomAtrPeriod), barmerge.gaps_off, barmerge.lookahead_on)
+mom = security(syminfo.tickerid, lrmomResolution, mom(close, lrmomLen), barmerge.gaps_off, barmerge.lookahead_on)
+lrmom = security(syminfo.tickerid, lrmomResolution, linreg(mom, lrmomLrPeriod, 0) * (lrmomScale / 100), barmerge.gaps_off, barmerge.lookahead_on)
+
+lrmomLongTrend = lrmom > lastSeriesValue(lrmom) + lrmomAtrMultiplier * lrmomAtr
+lrmomShortTrend = lrmom < lastSeriesValue(lrmom) - lrmomAtrMultiplier * lrmomAtr
+lrmomTrendReversalZone = not lrmomLongTrend and not lrmomShortTrend
+
+lrmomColor = lrmomTrendReversalZone ? color.silver : lrmomLongTrend ? color.aqua : color.fuchsia
+plot(not overlayCandles and showLrmom ? lrmom : na, color=lrmomColor, title="LRMOM", linewidth=1)
+
+
+//
+// === MACD ===
+// === Note: No plots yet ===
+//
+
+macdFast_ma = ema(close, 12)
+macdSlow_ma = ema(close, 26)
+macd = macdFast_ma - macdSlow_ma // "blue line"
+macdSignal = ema(macd, 9) // "orange line"
+macdHistogram = macd - macdSignal 
+
+
+//
+// === Divergences ===
+// === From my divergences script https://www.tradingview.com/script/YzinJxOG-Market-Cipher-B-Anchor-Trigger-Waves-and-Divergences/ ===
+//
+
+lbR = 1 // input(title="DIVERGENCES: Pivot Lookback Right", defval=1)
+lbL = 5 // input(title="DIVERGENCES: Pivot Lookback Left", defval=5)
+rangeUpper = 60 // input(title="DIVERGENCES: Max of Lookback Range", defval=60)
+rangeLower = 5 // input(title="DIVERGENCES: Min of Lookback Range", defval=5)
+
+_inRange(cond) =>
+	bars = barssince(cond == true)
+	rangeLower <= bars and bars <= rangeUpper
+
+// ~~~ blueWaves ~~~
+
+blueWaveLowFound = na(pivotlow(blueWave, lbL, lbR)) ? false : true
+blueWaveHighFound = na(pivothigh(blueWave, lbL, lbR)) ? false : true
+
+// Regular Bullish = blueWave: Higher Low, Price: Lower Low
+blueWaveHL = blueWave[lbR] > valuewhen(blueWaveLowFound, blueWave[lbR], 1) and _inRange(blueWaveLowFound[1])
+blueWavePriceLL = low[lbR] < valuewhen(blueWaveLowFound, low[lbR], 1)
+blueWaveBullDivergence = blueWavePriceLL and blueWaveHL and blueWaveLowFound
+
+// Hidden Bullish = blueWave: Lower Low, Price: Higher Low
+blueWaveLL = blueWave[lbR] < valuewhen(blueWaveLowFound, blueWave[lbR], 1) and _inRange(blueWaveLowFound[1])
+blueWavePriceHL = low[lbR] > valuewhen(blueWaveLowFound, low[lbR], 1)
+blueWaveHiddenBullDivergence = blueWavePriceHL and blueWaveLL and blueWaveLowFound
+
+// Regular Bearish = blueWave: Lower High, Price: Higher High
+blueWaveLH = blueWave[lbR] < valuewhen(blueWaveHighFound, blueWave[lbR], 1) and _inRange(blueWaveHighFound[1])
+blueWavePriceHH = high[lbR] > valuewhen(blueWaveHighFound, high[lbR], 1)
+blueWaveBearDivergence = blueWavePriceHH and blueWaveLH and blueWaveHighFound
+
+// Hidden Bearish = blueWave: Higher High, Price: Lower High
+blueWaveHH = blueWave[lbR] > valuewhen(blueWaveHighFound, blueWave[lbR], 1) and _inRange(blueWaveHighFound[1])
+blueWavePriceLH = high[lbR] < valuewhen(blueWaveHighFound, high[lbR], 1)
+blueWaveHiddenBearDivergence = blueWavePriceLH and blueWaveHH and blueWaveHighFound
+
+
+// ~~~ MACD ~~~
+
+macdLowFound = na(pivotlow(macd, lbL, lbR)) ? false : true
+macdHighFound = na(pivothigh(macd, lbL, lbR)) ? false : true
+
+// Regular Bullish = macd: Higher Low, Price: Lower Low
+macdHL = macd[lbR] > valuewhen(macdLowFound, macd[lbR], 1) and _inRange(macdLowFound[1])
+macdPriceLL = low[lbR] < valuewhen(macdLowFound, low[lbR], 1)
+macdBullDivergence = macdPriceLL and macdHL and macdLowFound
+
+// Hidden Bullish = macd: Lower Low, Price: Higher Low
+macdLL = macd[lbR] < valuewhen(macdLowFound, macd[lbR], 1) and _inRange(macdLowFound[1])
+macdPriceHL = low[lbR] > valuewhen(macdLowFound, low[lbR], 1)
+macdHiddenBullDivergence = macdPriceHL and macdLL and macdLowFound
+
+// Regular Bearish = macd: Lower High, Price: Higher High
+macdLH = macd[lbR] < valuewhen(macdHighFound, macd[lbR], 1) and _inRange(macdHighFound[1])
+macdPriceHH = high[lbR] > valuewhen(macdHighFound, high[lbR], 1)
+macdBearDivergence = macdPriceHH and macdLH and macdHighFound
+
+// Hidden Bearish = macd: Higher High, Price: Lower High
+macdHH = macd[lbR] > valuewhen(macdHighFound, macd[lbR], 1) and _inRange(macdHighFound[1])
+macdPriceLH = high[lbR] < valuewhen(macdHighFound, high[lbR], 1)
+macdHiddenBearDivergence = macdPriceLH and macdHH and macdHighFound
+
+
+//
+// === Support/Resistance ===
+// TODO: Also look into this https://www.tradingview.com/script/pnc5rcY3-RSI-Support-Resistance-by-DGT/
+// TODO: Also look into this https://www.tradingview.com/script/va09eWAp-Support-Resistance-Dynamic-v2/
+// TODO: Also look into this https://www.tradingview.com/script/P0N14VcD-Support-and-Resistance-Multi-Time-frame/
+// TODO: Also look into this https://www.tradingview.com/script/vockwfkd-Moving-Averages-as-Support-Resistance-MTF-w-Next-S-R-Levels/
+//
+
+showSupportResistance = input(true, "Show Support/Resistance (Candle Overlay)", input.bool, group="Support/Resistance")
+SRResolution1 = input(title="SR Resolution 1 (Green/Red)", type=input.resolution, defval="", group="Support/Resistance")
+SRResolution2 = input(title="SR Resolution 2 (Teal/Purple)", type=input.resolution, defval="1D", group="Support/Resistance")
+SRleft = input(defval=50, title="Left Bars", inline="lr", group="Support/Resistance")
+SRright = input(defval=25, title="Right Bars", inline="lr", group="Support/Resistance")
+SRquick_right = input(defval=5, title="Quick Right", inline="sr", group="Support/Resistance")
+SRsrc = input(defval="Close",options = ["Close","High/Low"], title = "Source", inline="sr", group="Support/Resistance")
+
+SRvalues(SRsrc, SRleft, SRright, SRquick_right) =>
+    SRpivot_high = iff(SRsrc=="Close",pivothigh(close,SRleft,SRright),pivothigh(high,SRleft,SRright))
+    SRpivot_lows = iff(SRsrc=="Close",pivotlow(close,SRleft,SRright),pivotlow(low,SRleft,SRright))
+    SRquick_pivot_high = iff(SRsrc=="Close",pivothigh(close,SRleft,SRquick_right),pivothigh(high,SRleft,SRquick_right))
+    SRquick_pivot_lows = iff(SRsrc=="Close",pivotlow(close,SRleft,SRquick_right),pivotlow(low,SRleft,SRquick_right))
+    SRlevel1 = iff(SRsrc=="Close",valuewhen(SRquick_pivot_high, close[SRquick_right], 0),valuewhen(SRquick_pivot_high, high[SRquick_right], 0))
+    SRlevel2 = iff(SRsrc=="Close",valuewhen(SRquick_pivot_lows, close[SRquick_right], 0),valuewhen(SRquick_pivot_lows, low[SRquick_right], 0))
+    SRlevel3 = iff(SRsrc=="Close",valuewhen(SRpivot_high, close[SRright], 0),valuewhen(SRpivot_high, high[SRright], 0))
+    SRlevel4 = iff(SRsrc=="Close",valuewhen(SRpivot_lows, close[SRright], 0),valuewhen(SRpivot_lows, low[SRright], 0))
+    SRlevel5 = iff(SRsrc=="Close",valuewhen(SRpivot_high, close[SRright], 1),valuewhen(SRpivot_high, high[SRright], 1))
+    SRlevel6 = iff(SRsrc=="Close",valuewhen(SRpivot_lows, close[SRright], 1),valuewhen(SRpivot_lows, low[SRright], 1))
+    SRlevel7 = iff(SRsrc=="Close",valuewhen(SRpivot_high, close[SRright], 2),valuewhen(SRpivot_high, high[SRright], 2))
+    SRlevel8 = iff(SRsrc=="Close",valuewhen(SRpivot_lows, close[SRright], 2),valuewhen(SRpivot_lows, low[SRright], 2))
+    [SRpivot_high, SRpivot_lows, SRquick_pivot_high, SRquick_pivot_lows, SRlevel1, SRlevel2, SRlevel3, SRlevel4, SRlevel5, SRlevel6, SRlevel7, SRlevel8]
+
+[res1_SRpivot_high, res1_SRpivot_lows, res1_SRquick_pivot_high, res1_SRquick_pivot_lows, res1_SRlevel1, res1_SRlevel2, res1_SRlevel3, res1_SRlevel4, res1_SRlevel5, res1_SRlevel6, res1_SRlevel7, res1_SRlevel8] = security(syminfo.tickerid, SRResolution1, SRvalues(SRsrc, SRleft, SRright, SRquick_right), barmerge.gaps_off, barmerge.lookahead_on)
+[res2_SRpivot_high, res2_SRpivot_lows, res2_SRquick_pivot_high, res2_SRquick_pivot_lows, res2_SRlevel1, res2_SRlevel2, res2_SRlevel3, res2_SRlevel4, res2_SRlevel5, res2_SRlevel6, res2_SRlevel7, res2_SRlevel8] = security(syminfo.tickerid, SRResolution2, SRvalues(SRsrc, SRleft, SRright, SRquick_right), barmerge.gaps_off, barmerge.lookahead_on)
+
+res1_SRlevel1_col = close >= res1_SRlevel1 ? color.green : color.red
+res1_SRlevel2_col = close >= res1_SRlevel2 ? color.green : color.red
+res1_SRlevel3_col = close >= res1_SRlevel3 ? color.green : color.red
+res1_SRlevel4_col = close >= res1_SRlevel4 ? color.green : color.red
+res1_SRlevel5_col = close >= res1_SRlevel5 ? color.green : color.red
+res1_SRlevel6_col = close >= res1_SRlevel6 ? color.green : color.red
+res1_SRlevel7_col = close >= res1_SRlevel7 ? color.green : color.red
+res1_SRlevel8_col = close >= res1_SRlevel8 ? color.green : color.red
+res2_SRlevel1_col = close >= res2_SRlevel1 ? color.teal : color.purple
+res2_SRlevel2_col = close >= res2_SRlevel2 ? color.teal : color.purple
+res2_SRlevel3_col = close >= res2_SRlevel3 ? color.teal : color.purple
+res2_SRlevel4_col = close >= res2_SRlevel4 ? color.teal : color.purple
+res2_SRlevel5_col = close >= res2_SRlevel5 ? color.teal : color.purple
+res2_SRlevel6_col = close >= res2_SRlevel6 ? color.teal : color.purple
+res2_SRlevel7_col = close >= res2_SRlevel7 ? color.teal : color.purple
+res2_SRlevel8_col = close >= res2_SRlevel8 ? color.teal : color.purple
+
+plot(overlayCandles and showSupportResistance ? res1_SRlevel1 : na, color=res1_SRlevel1_col, show_last=1, trackprice=true, linewidth=2, title="res1_SRlevel1")
+plot(overlayCandles and showSupportResistance ? res1_SRlevel2 : na, color=res1_SRlevel2_col, show_last=1, trackprice=true, linewidth=2, title="res1_SRlevel2")
+plot(overlayCandles and showSupportResistance ? res1_SRlevel3 : na, color=res1_SRlevel3_col, show_last=1, trackprice=true, linewidth=2, title="res1_SRlevel3")
+plot(overlayCandles and showSupportResistance ? res1_SRlevel4 : na, color=res1_SRlevel4_col, show_last=1, trackprice=true, linewidth=2, title="res1_SRlevel4")
+// plot(overlayCandles and showSupportResistance ? res1_SRlevel5 : na, color=res1_SRlevel5_col, show_last=1, trackprice=true, linewidth=2, title="res1_SRlevel5")
+// plot(overlayCandles and showSupportResistance ? res1_SRlevel6 : na, color=res1_SRlevel6_col, show_last=1, trackprice=true, linewidth=2, title="res1_SRlevel6")
+// plot(overlayCandles and showSupportResistance ? res1_SRlevel7 : na, color=res1_SRlevel7_col, show_last=1, trackprice=true, linewidth=2, title="res1_SRlevel7")
+// plot(overlayCandles and showSupportResistance ? res1_SRlevel8 : na, color=res1_SRlevel8_col, show_last=1, trackprice=true, linewidth=2, title="res1_SRlevel8")
+
+plot(overlayCandles and showSupportResistance ? res2_SRlevel1 : na, color=res2_SRlevel1_col, show_last=1, trackprice=true, linewidth=3, title="res2_SRlevel1")
+plot(overlayCandles and showSupportResistance ? res2_SRlevel2 : na, color=res2_SRlevel2_col, show_last=1, trackprice=true, linewidth=3, title="res2_SRlevel2")
+plot(overlayCandles and showSupportResistance ? res2_SRlevel3 : na, color=res2_SRlevel3_col, show_last=1, trackprice=true, linewidth=3, title="res2_SRlevel3")
+plot(overlayCandles and showSupportResistance ? res2_SRlevel4 : na, color=res2_SRlevel4_col, show_last=1, trackprice=true, linewidth=3, title="res2_SRlevel4")
+// plot(overlayCandles and showSupportResistance ? res1_SRlevel5 : na, color=res1_SRlevel5_col, show_last=1, trackprice=true, linewidth=3, title="res1_SRlevel5")
+// plot(overlayCandles and showSupportResistance ? res1_SRlevel6 : na, color=res1_SRlevel6_col, show_last=1, trackprice=true, linewidth=3, title="res1_SRlevel6")
+// plot(overlayCandles and showSupportResistance ? res1_SRlevel7 : na, color=res1_SRlevel7_col, show_last=1, trackprice=true, linewidth=3, title="res1_SRlevel7")
+// plot(overlayCandles and showSupportResistance ? res1_SRlevel8 : na, color=res1_SRlevel8_col, show_last=1, trackprice=true, linewidth=3, title="res1_SRlevel8")
+
+
+//
+// === Volume Flow ===
+// === https://www.tradingview.com/script/8lJwk8bm-Volume-Flow-v3/ === 
+//
+
+vflowMaType = input(title="Moving Average Type", options=["Simple", "Exponential", "Double Exponential"], defval="Exponential", group="Volume Flow")
+vflowLength = input(14, title="MA Length", group="Volume Flow")
+vflowFactor = input(3.1, title="Factor For Breakout Candle", group="Volume Flow")
+
+vflowBull = close > open ? volume : 0 
+vflowBear = open > close ? volume : 0
+
+// Double EMA Function //
+dema(src, len) => (2 * ema(src, len) - ema(ema(src, len), len))
+
+bullma = vflowMaType == "Exponential" ? ema(vflowBull, vflowLength) :
+         vflowMaType == "Double Exponential" ? dema(vflowBull, vflowLength) :
+         sma(vflowBull, vflowLength)
+
+bearma = vflowMaType == "Exponential" ? ema(vflowBear, vflowLength) :
+         vflowMaType == "Double Exponential" ? dema(vflowBear, vflowLength) :
+         sma(vflowBear, vflowLength)
+
+vflow = bullma - bearma
+vflowGreenSpike = crossover(vflowBull, bullma * vflowFactor) ? volume : na
+vflowRedSpike = crossover(vflowBear, bearma * vflowFactor) ? volume : na
+
+vClr = close > open ? #5AA650 : #FF510D
+plot(volumeIndicatorMode and not overlayCandles ? volume : na, color=vClr, style=plot.style_columns, transp=80, title="Volume")
+plot(volumeIndicatorMode and not overlayCandles ? bullma : na, color=#5AA650, linewidth=1, transp=0, title="VFlow Bull MA")
+plot(volumeIndicatorMode and not overlayCandles ? bearma : na, color=#FF510D, linewidth=1, transp=0, title="VFlow Bear MA")
+plot(volumeIndicatorMode and not overlayCandles and (vflowGreenSpike or vflowRedSpike) ? volume : na, style=plot.style_columns, transp=20, color=vClr, title="VFlow Spike")
+
+
+//
+// === Custom strategies and alerts ===
+// === PASTE STRAT CODE HERE IF YOU'D LIKE TO TRY IT. CODE SNIPPETS ARE IN EACH STRAT CHANNEL IN DISCORD. Adler's strat is here as an example ===
+//
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+// --- Nrrd --- 
+
+nrrdIndicator = input(false, "Show Nrrd's indicators", input.bool, group="Nrrd's Strat")
+cerebralLongWPThreshold = input(title="Set 1: Allow Long if Wolfpack is over", defval=16, group="Nrrd's Strat")
+cerebralShortWPThreshold = input(title="Set 1: Allow Short if Wolfpack under", defval=-15, group="Nrrd's Strat")
+nrrdLongTrendThreshold = input(title="Set 1: Started Long Trend w/in __ bars", defval=2, group="Nrrd's Strat")
+nrrdShortTrendThreshold = input(title="Set 1: Started Short Trend w/in __ bars", defval=2, group="Nrrd's Strat")
+nrrdLongWPThreshold = input(title="Set 2: Allow Long if Wolfpack is over", defval=5, group="Nrrd's Strat")
+nrrdShortWPThreshold = input(title="Set 2: Allow Short if Wolfpack under", defval=-10, group="Nrrd's Strat")
+nrrdLongBarRangeThreshold = input(title="Deduped Long w/in __ bars", defval=8, group="Nrrd's Strat")
+nrrdShortBarRangeThreshold = input(title="Deduped Short w/in __ bars", defval=10, group="Nrrd's Strat")
+nrrdSetLongTslpPercent = input(title="Long's TSLP alert fires once __% profit has been achieved", defval=.65, step=.01, group="Nrrd's Strat")
+nrrdSetShortTslpPercent = input(title="Short's TSLP alert fires once __% profit has been achieved", defval=.5, step=.01, group="Nrrd's Strat")
+// cancelLongWPThreshold = input(title="Abort: Cancel Long if Wolfpack crosses", defval=5, group="Nrrd's Strat")
+// cancelShortWPThreshold = input(title="Abort: Cancel Short if Wolfpack crosses", defval=-5, group="Nrrd's Strat")
+// cancelLongBarRangeThreshold = input(title="Abort: Abort Long w/in __ of entry", defval=2, group="Nrrd's Strat")
+// cancelShortBarRangeThreshold = input(title="Abort: Abort Short w/in __ of entry", defval=2, group="Nrrd's Strat")
+
+// Uncomment these to see horizontal wolfpack thresholds on your chart //
+// hline(price=cerebralLongWPThreshold, color=color.lime)
+// hline(price=cerebralShortWPThreshold, color=color.red)
+// hline(price=nrrdLongWPThreshold, color=color.blue)
+// hline(price=nrrdShortWPThreshold, color=color.yellow)
+
+x1_wolfpackDirection = x1_wolfpack > x1_wolfpack[1]
+x1_wolfpackDirectionChange = (x1_wolfpack > x1_wolfpack[1] and x1_wolfpack[1] < x1_wolfpack[2]) or (x1_wolfpack < x1_wolfpack[1] and x1_wolfpack[1] > x1_wolfpack[2])
+x1_wolfpackUp = x1_wolfpack > x1_wolfpack[1] and x1_wolfpack[1] < x1_wolfpack[2]
+x1_wolfpackDown = x1_wolfpack < x1_wolfpack[1] and x1_wolfpack[1] > x1_wolfpack[2]
+
+nrrdLong =  barssince(STbuySignal[1]) < nrrdLongTrendThreshold and x1_wolfpack > cerebralLongWPThreshold
+nrrdShort = barssince(STsellSignal[1]) < nrrdShortTrendThreshold and x1_wolfpack < cerebralShortWPThreshold
+nrrdLong2 = x1_wolfpackDirection and x1_openCloseLongTrend and x1_wolfpack > nrrdLongWPThreshold and lrmomLongTrend
+// nrrdShort2 = x1_wolfpackDirection and x1_openCloseShortTrend and x1_wolfpack < nrrdShortWPThreshold and lrmomShortTrend
+
+nrrdTwistLong = nrrdLong or nrrdLong2
+nrrdTwistShort = nrrdShort // or nrrdShort2
+nrrdLongDeduped = barssince(nrrdTwistLong[1]) < nrrdLongBarRangeThreshold ? na : nrrdTwistLong
+nrrdShortDeduped = barssince(nrrdTwistShort[1]) < nrrdShortBarRangeThreshold ? na : nrrdTwistShort
+
+// nrrdCancelLong = barssince(nrrdLong[1]) < 1 and x1_wolfpackDown and x1_wolfpack > cerebralLongWPThreshold
+// nrrdCancelShort = barssince(nrrdShort[1]) < 1 and x1_wolfpackUp and x1_wolfpack < cerebralShortWPThreshold
+// cancelShortDeduped = barssince(nrrdCancelShort[1]) < nrrdShortBarRangeThreshold ? na : nrrdCancelShort
+// cancelLongDeduped = barssince(nrrdCancelLong[1]) < nrrdShortBarRangeThreshold ? na : nrrdCancelLong
+
+nrrdSetNewLongTslp = high > valuewhen(nrrdLongDeduped, close, 0) * (1 + (.01 * nrrdSetLongTslpPercent)) and not nrrdLongDeduped and barssince(nrrdLongDeduped) < barssince(nrrdShortDeduped)
+nrrdSetNewShortTslp = low < valuewhen(nrrdShortDeduped, close, 0) * (1 - (.01 * nrrdSetShortTslpPercent)) and not nrrdShortDeduped and barssince(nrrdShortDeduped) < barssince(nrrdLongDeduped)
+nrrdSetNewLongTslpDeduped = nrrdSetNewLongTslp and barssince(nrrdLongDeduped) <= barssince(nrrdSetNewLongTslp[1])
+nrrdSetNewShortTslpDeduped = nrrdSetNewShortTslp and barssince(nrrdShortDeduped) <= barssince(nrrdSetNewShortTslp[1])
+
+alertcondition(nrrdLongDeduped, "Nrrd Long","Nrrd Long Entry")
+alertcondition(nrrdShortDeduped, "Nrrd Short", "Nrrd Short Entry")
+// alertcondition(cancelShortDeduped or cancelLongDeduped, "Nrrd Abort", "Nrrd Abort Entry")
+alertcondition(nrrdSetNewLongTslpDeduped, "Nrrd Set Long TSLP","Nrrd Set Long TSLP")
+alertcondition(nrrdSetNewShortTslpDeduped, "Nrrd Set Short TSLP","Nrrd Set Short TSLP")
+
+nrrdColor = nrrdLongDeduped or nrrdSetNewLongTslpDeduped ? color.lime : nrrdShortDeduped or nrrdSetNewShortTslpDeduped ? color.red : na
+plotshape(overlayCandles and nrrdIndicator ? nrrdLongDeduped or nrrdShortDeduped ? close : na : na, title="NrrdEntry", text="NrrdEntry", style=shape.triangleup, location=location.belowbar, color=nrrdColor, textcolor=color.white, transp=0, size=size.small)
+// plotshape((cancelShortDeduped or cancelLongDeduped) and overlayCandles and nrrdIndicator ? close : na, title="NrrdAbort", text="NrrdAbort", style=shape.triangledown, location=location.abovebar, color=color.white, textcolor=color.white, transp=0, size=size.small)
+plotshape(overlayCandles and nrrdIndicator ? nrrdSetNewLongTslpDeduped or nrrdSetNewShortTslpDeduped ? close : na : na, title="NrrdTslp", text="NrrdTslp", style=shape.triangledown, location=location.abovebar, color=nrrdColor, textcolor=color.white, transp=0, size=size.small)
+
+
+// // --- Adler ---
+
+// adlerIndicator = input(false, "Show Adler's indicators", input.bool, group="Adler's Strat")
+
+// adlerX3Long = true // (x3_wt_force > 4 and x3_wt_force > lastSeriesValue(x3_wt_force)) and (x3_wolfpack > lastSeriesValue(x3_wolfpack) or x3_wolfpack > 0)
+// adlerX2Long = true // x2_wt_force > 2 and (x2_wt_force > lastSeriesValue(x2_wt_force) or x2_wolfpack > lastSeriesValue(x2_wolfpack))
+// adlerX1Long = vflow > vflow[1] and x1_wt_force > 0 and x1_wt_force > x1_wt_force[1] and x1_wolfpack > x1_wolfpack[1]
+
+// adlerX3Short = true // (x3_wt_force < -4 and x3_wt_force < lastSeriesValue(x3_wt_force)) and (x3_wolfpack < lastSeriesValue(x3_wolfpack) or x3_wolfpack < 0)
+// adlerX2Short = true // x2_wt_force < -2 and (x2_wt_force < lastSeriesValue(x2_wt_force) or x2_wolfpack < lastSeriesValue(x2_wolfpack))
+// adlerX1Short = vflow < vflow[1] and x1_wt_force < 0 and x1_wt_force < x1_wt_force[1] and x1_wolfpack < x1_wolfpack[1]
+
+// adlerLongVSpikeEntry = vflowGreenSpike and not x1_openCloseShortTrend and x1_wt_force > 0
+// adlerShortVSpikeEntry = vflowRedSpike and not x1_openCloseLongTrend and x1_wt_force < 0
+
+// adlerLongEntry = (adlerX1Long and adlerX2Long and adlerX3Long) or adlerLongVSpikeEntry
+// adlerShortEntry = (adlerX1Short and adlerX2Short and adlerX3Short) or adlerShortVSpikeEntry
+// adlerLongExit = false // (x1_wt_force < -2 and (not x1_openCloseLongTrend or not x2_openCloseLongTrend or x3_wt_force < 0)) or x1_wt_force < -4
+// adlerShortExit = false // (x1_wt_force > 2 and (not x1_openCloseShortTrend or not x2_openCloseShortTrend or x3_wt_force > 0)) or x1_wt_force > 4
+// adlerLongEntryDeduped = adlerLongEntry and barssince(adlerShortEntry) < barssince(adlerLongEntry[1]) // barssince(adlerLongEntry[1]) < 1 ? na : adlerLongEntry
+// adlerShortEntryDeduped = adlerShortEntry and barssince(adlerLongEntry) < barssince(adlerShortEntry[1]) // barssince(adlerShortEntry[1]) < 1 ? na : adlerShortEntry
+// adlerLongExitDeduped = barssince(adlerLongExit[1]) < 1 ? na : adlerLongExit
+// adlerShortExitDeduped = barssince(adlerShortExit[1]) < 1 ? na : adlerShortExit
+
+// alertcondition(adlerLongEntryDeduped, "Adler Long", "Adler Long")
+// alertcondition(adlerShortEntryDeduped, "Adler Short", "Adler Short")
+// // alertcondition(adlerLongExitDeduped, "Adler Long Exit", "Adler Long Exit")
+// // alertcondition(adlerShortExitDeduped, "Adler Short Exit", "Adler Short Exit")
+
+// adlerEntryColor = adlerLongEntryDeduped or adlerLongVSpikeEntry ? color.green : adlerShortEntryDeduped or adlerShortVSpikeEntry ? color.red : na
+// adlerExitColor = adlerLongExitDeduped ? color.green : adlerShortExitDeduped ? color.red : na
+
+// // plot(sma(tr*100/close[1], length), color=red)
+
+// plotshape(
+//      overlayCandles ? na : adlerIndicator and (adlerLongEntryDeduped or adlerShortEntryDeduped) ? x1_wt2 : na,
+//      title="adlerEntry",
+//      text=" ^ ",
+//      style=shape.labelup,
+//      location=location.absolute,
+//      color=adlerEntryColor,
+//      textcolor=color.white,
+//      transp=0
+//      )
+
+// plotshape(
+//      overlayCandles ? na : adlerIndicator and (adlerLongVSpikeEntry or adlerShortVSpikeEntry) and (adlerLongEntryDeduped or adlerShortEntryDeduped) ? x1_wt2 : na,
+//      title="adlerSpikeEntry",
+//      text=" S ",
+//      style=shape.labelup,
+//      location=location.absolute,
+//      color=adlerEntryColor,
+//      textcolor=color.white,
+//      transp=0
+//      )
+
+// plotshape(
+//      overlayCandles ? na : adlerIndicator and (adlerLongExitDeduped or adlerShortExitDeduped) ? x1_wt2 : na,
+//      title="adlerExit",
+//      text=" X ",
+//      style=shape.labeldown,
+//      location=location.absolute,
+//      color=adlerExitColor,
+//      textcolor=color.white,
+//      transp=0
+//      )
+
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+//
+// === Backtesting ===
+// 
+
+// // ~~~~~ To use this, as a backtestable strategy, first follow the instructions at the very top of the script ~~~~~~~~~~~~~~~~~~~~~~~~~~
+// // ~~~~~ Then, uncomment the below code, and change the "enterLong" and "enterShort" and "marketExit" to be your strat's signals ~~~~~~~
+
+// // ~~~~~ IMPORANT!!! YOU NEED TO CHANGE THIS CODE!!! ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// // ~~~~~ Paste your logic here, e.g. adlerLongEntryDeduped / adlerShortEntryDeduped / adlerLongExitDeduped / adlerShortExitDeduped ~~~~~
+// enterLong = (your Long trigger)
+// enterShort = (your Short trigger)
+// marketExit = (your Exit or Short trigger)
+// // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+// // Input options for configuring the backtest date range
+// startMonth = input(title="Month", type=input.integer, defval=1, minval=1, maxval=12, inline = 'Start', group="Backtesting: Start Date")
+// startDate = input(title="Day", type=input.integer, defval=1, minval=1, maxval=31, inline = 'Start', group="Backtesting: Start Date")
+// startYear = input(title="Yr", type=input.integer, defval=2021, minval=1999, maxval=2100, inline = 'Start', group="Backtesting: Start Date")
+// endMonth = input(title="Month", type=input.integer,defval=7, minval=1, maxval=12, inline = 'End', group="Backtesting: End Date")
+// endDate = input(title="Day", type=input.integer, defval=1, minval=1, maxval=31, inline = 'End', group="Backtesting: End Date")
+// endYear = input(title="Yr", type=input.integer, defval=2025, minval=1999, maxval=2100, inline = 'End', group="Backtesting: End Date")
+
+// // Configurations for risk and leverage
+// g(v, p) => round(v * (pow(10, p))) / pow(10, p)
+// risk     = input(100, inline="rl", group="Backtesting: Risk / Leverage")
+// leverage = input(10, inline="rl", group="Backtesting: Risk / Leverage" )
+// c = g((strategy.equity * leverage / open) * (risk / 100), 4)
+
+// // Code for TP/SL configurations
+// longTPP = input(0.95, title='Long TP %', type=input.float, inline = 'Long', group="StopLoss / Take Profit") / 100
+// longSLP = input(3.0, title='Long SL %', type=input.float, inline = 'Long', group="StopLoss / Take Profit") / 100
+// shortTPP = input(0.65, title='Short TP %', type=input.float, inline = 'Short', group="StopLoss / Take Profit") / 100
+// shortSLP = input(5.0, title='Short SL %', type=input.float, inline = 'Short', group="StopLoss / Take Profit") / 100
+
+// // Code for determining where you've entered and in what direction
+// longSL = strategy.position_avg_price * (1 - longSLP)
+// shortSL = strategy.position_avg_price * (1 + shortSLP)
+// shortTP = strategy.position_avg_price * (1 - shortTPP)
+// longTP = strategy.position_avg_price * (1 + longTPP)
+
+// if strategy.position_size > 0 and marketExit
+//     strategy.close(id="Long", comment="Market Exit")
+// if strategy.position_size > 0
+//     strategy.exit(id="Close Long", comment="TP / SL", stop=longSL, limit=longTP)
+// if strategy.position_size < 0 
+//     strategy.exit(id="Close Short", stop=shortSL, limit=shortTP)
+
+// // Helper function that looks if the close time of the current bar falls inside the date range
+// inDateRange = (time >= timestamp(syminfo.timezone, startYear,
+//          startMonth, startDate, 0, 0)) and
+//      (time < timestamp(syminfo.timezone, endYear, endMonth, endDate, 0, 0))
+
+// // Code for submitting entry orders, but only when bar is inside date range
+// if (inDateRange and enterLong)
+//     strategy.entry("Long", strategy.long, c)
+// if (inDateRange and enterShort)
+//     strategy.entry("Short", strategy.short, c)
+
+// // Code for exit open positions when date range ends
+// if (not inDateRange)
+//     strategy.close_all()

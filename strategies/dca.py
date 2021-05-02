@@ -96,9 +96,6 @@ class Strategy_DCA:
 
     # collect orders via ws
     async def collect_orders(self, total_entry_exit_orders, profit_percent_1, profit_percent_2):
-        global active_orders_list
-
-        self.active_orders_list = dca_logic.initialize_orders_list(total_entry_exit_orders)
 
         while True:
             await asyncio.sleep(0)
@@ -129,17 +126,15 @@ class Strategy_DCA:
             print('\nadding new or changed order to order list\n')
             
         elif(order_status == 'Cancelled'):
-            print('\nOrder was Cancelled, adding to slipped list\n')
+            print('\nOrder was Cancelled, checking for slipped or intention... \n')
             cancelled_order_id = order['order_id']
-            slipped_order_flag = True
-            for order_id in self.cancelled_orders_list:
-                if cancelled_order_id == order_id:
-                    slipped_order_flag = False
-                    
-            if slipped_order_flag == True:
+            
+            if (cancelled_order_id in self.cancelled_orders_list) == False:
+                print('confirmed slipped order, moving cancelled order to slipped list')
                 self.slipped_orders_list.append(order)
-
-            self.cancelled_orders_list = []
+            else:
+                print('confirmed cancelled order, removing order id from cancelled orders list')
+                self.cancelled_orders_list.remove(cancelled_order_id)
 
         else:
             print('invalid order status')
@@ -187,10 +182,8 @@ class Strategy_DCA:
                                                         total_entry_orders, total_exit_orders):
         global active_orders_list
         global slipped_orders_list
-
-        print('\nclearing active_orders_list & slipped_orders_list\n')
-        self.active_orders_list = dca_logic.initialize_orders_list(total_entry_exit_orders)
-        self.slipped_orders_list = []
+        global cancelled_orders_list
+        global filled_orders_list
 
         available_input_quantity = total_input_quantity
         position_trade_quantity = total_input_quantity / max_active_positions
@@ -208,6 +201,14 @@ class Strategy_DCA:
         #TODO: create startup checks for active orders * position
         while True:
             if self.api.get_position_size() == 0:
+
+                print('\initializing all order lists: \n')
+                self.active_orders_list = dca_logic.initialize_orders_list(total_entry_exit_orders)
+                self.filled_orders_list = []
+                self.cancelled_orders_list = []
+                self.slipped_orders_list = []
+                
+                
 
                 # create initial main_pos entry pos & exit orders:
                 await self.create_main_pos_entry_exit('Market', self.entry_side, main_pos_input_quantity, 
@@ -303,11 +304,10 @@ class Strategy_DCA:
         print('\nchecking for available entries: ')
 
         for x in range(orders_to_cancel):
-            print("cancelling orders: ")
+            print(f"cancelling orders: {orders_to_cancel} ")
             order = active_entry_orders_list[0]
             order_id = order['order_id']
             self.cancelled_orders_list.append(order_id)
-            print(f'num orders to cancel: {orders_to_cancel}')
             self.api.cancel_order(order_id)
             active_entry_orders_list.remove(order)
 
