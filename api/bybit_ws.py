@@ -79,21 +79,7 @@ class Bybit_WS:
             await asyncio.sleep(self.interval)
             data = self.ws.get_data("order")
             if data:
-                print(pprint.pprint(data))
                 return data
-                    
-    # async def get_filled_order(self):
-    #     self.ws.subscribe_order()
-    #     while True:
-    #         await asyncio.sleep(self.interval)
-    #         data = self.ws.get_data("order")
-    #         if data:
-    #             filled_order = data[0]
-    #             order_link_id = filled_order['order_link_id']
-    #             order_status = filled_order['order_status']
-    #             if (order_status == 'Filled'):
-    #                 print(f'filled order: {order_link_id}')
-    #                 return filled_order
 
     async def instrument_info(self):
         self.ws.subscribe_instrument_info(symbol=self.symbol_pair)
@@ -106,29 +92,44 @@ class Bybit_WS:
 
     async def get_last_price(self):
         self.ws.subscribe_instrument_info(symbol=self.symbol_pair)
-        index_price_key = 'index_price_e4'
+        
         last_price_key = 'last_price_e4'
-        mark_price_key = 'mark_price_e4'
+        
         while True:
             await asyncio.sleep(self.interval)
-            data = self.ws.get_data("instrument_info.100ms.BTCUSD")
+            data = self.ws.get_data(f"instrument_info.100ms.{self.symbol_pair}")
+            if data:
+                if 'update' in data:
+                    new_data = data['update'][0]
+                    if last_price_key in new_data:
+                        last_price = new_data[last_price_key]
+                        calc_last_price = float(last_price) / 10000
+                        return calc_last_price
+
+    async def get_mark_price(self):
+        self.ws.subscribe_instrument_info(symbol=self.symbol_pair)
+        mark_price_key = 'mark_price_e4'
+        
+        while True:
+            await asyncio.sleep(self.interval)
+            if data:
+                if 'update' in data:
+                    new_data = data['update'][0]
+                    if mark_price_key in new_data:
+                        mark_price = new_data[mark_price_key]
+                        calc_mark_price = float(mark_price) / 10000
+                        return calc_mark_price
+
+    async def get_index_price(self):
+        self.ws.subscribe_instrument_info(symbol=self.symbol_pair)
+        index_price_key = 'index_price_e4'
+        
+        while True:
+            await asyncio.sleep(self.interval)
             if data:
                 if 'update' in data:
                     new_data = data['update'][0]
                     if index_price_key in new_data:
                         index_price = new_data[index_price_key]
-                        print('index_price: ')
-                        print(float(index_price) / 10000)   
-                        print('')
-
-                    if last_price_key in new_data:
-                        last_price = new_data[last_price_key]
-                        print('last_price: ')
-                        print(float(last_price) / 10000) 
-                        print('')
-
-                    if mark_price_key in new_data:
-                        mark_price_key = new_data[mark_price_key]
-                        print('mark_price: ')
-                        print(float(mark_price_key) / 10000) 
-                        print('')
+                        calc_index_price = float(index_price) / 10000
+                        return calc_index_price

@@ -25,9 +25,8 @@ def extract_link_id_pos(link_id):
     index = 5
     pos_id = ''
     attach = '-'
-
+    print(f'in extract_link_id: {link_id}')
     for x in range(3):
-        print(link_id[index])
         if (link_id[index] != attach):
             pos_id = pos_id + link_id[index]
             index += 1
@@ -52,19 +51,18 @@ def get_orders_not_active(init_orders_list, active_orders_list):
 
 #retreive orders & separate into dict
 def get_orders_dict(entry_side, order_list):
-    
     entry_orders_list = []
     exit_orders_list = []
 
     order_list_kv = {}
 
-    for x in range(len(order_list)):
+    for order in order_list:
 
-        if (order_list[x]['side'] == entry_side):
-            entry_orders_list.append(order_list[x])
+        if (order['side'] == entry_side):
+            entry_orders_list.append(order)
         else:
-            exit_orders_list.append(order_list[x])
-
+            exit_orders_list.append(order)
+            
     if (entry_side == 'Buy'):
         order_list_kv['Buy'] = sorted(entry_orders_list, key=lambda k: k['price'], reverse=True)
         order_list_kv['Sell'] = sorted(exit_orders_list, key=lambda k: k['price'])
@@ -72,9 +70,24 @@ def get_orders_dict(entry_side, order_list):
     else:
         order_list_kv['Sell'] = sorted(entry_orders_list, key=lambda k: k['price'])
         order_list_kv['Buy'] = sorted(exit_orders_list, key=lambda k: k['price'], reverse=True)
-    
+
     return order_list_kv
 
+def get_total_quantity_and_ids_dict(side, order_list):
+    order_link_ids = []
+    total_quantity = 0
+
+    order_dict = {}
+
+    for order in order_list:
+        if (order['side'] == side):
+            order_link_ids.append(order['order_link_id'])
+            total_quantity += order['qty']
+
+    order_dict['order_link_ids'] = order_link_ids
+    order_dict['total_quantity'] = total_quantity
+
+    return order_dict
 
 def get_updated_order_info(order, profit_percent_1, profit_percent_2):
         
