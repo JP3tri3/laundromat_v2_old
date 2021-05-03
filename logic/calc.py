@@ -34,10 +34,10 @@ class Calc:
     def calc_one_percent(self, leverage, last_price):
         return(float(last_price) * 0.01) / leverage
 
-    def calc_percent_difference(self, long_short, entry_exit, entry_price, percent):
-        if ((long_short == 'long') and (entry_exit == 'entry')) or ((long_short == 'short') and (entry_exit == 'exit')):
+    def calc_percent_difference(self, entry_side, entry_exit, entry_price, percent):
+        if ((entry_side == 'Buy') and (entry_exit == 'entry')) or ((entry_side == 'Sell') and (entry_exit == 'exit')):
             percent = (1 - percent)
-        elif ((long_short == 'long') and (entry_exit == 'exit')) or ((long_short == 'short') and (entry_exit == 'entry')):
+        elif ((entry_side == 'Buy') and (entry_exit == 'exit')) or ((long_short == 'Sell') and (entry_exit == 'entry')):
             percent += 1
         else:
             print("Somethings Fucking Wrong with calc_percent_difference")

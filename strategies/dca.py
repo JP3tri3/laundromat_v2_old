@@ -81,6 +81,8 @@ class Strategy_DCA:
         self.db.initialize_active_orders_table(total_entry_exit_orders)
 
 
+        self.trend_reversal = False
+
         # starting tasks
         task_ping_timer = asyncio.create_task(self.ws.ping(0.5, 15))
         task_gather_last_price = asyncio.create_task(self.get_last_price())
@@ -90,9 +92,12 @@ class Strategy_DCA:
                                                                 total_secondary_orders_1, secondary_orders_2, total_secondary_orders_2, percent_rollover, 
                                                                     self.max_active_positions, self.input_quantity, profit_percent_1, profit_percent_2, 
                                                                         total_entry_exit_orders, total_entry_orders, total_exit_orders))
+        # test_task = asyncio.create_task(self.test_func())
+        # await test_task 
+
 
         await task_ping_timer
-        await task_collect_orders        
+        await task_collect_orders       
         await task_start_dca_multi_position
         await task_gather_last_price
 
@@ -101,23 +106,27 @@ class Strategy_DCA:
         # # # # # # TEST # # # # # #
 
 
+    # def continue_saved_state(self, total_entry_exit_orders):
+
+        
+    #     pos_size = self.api.get_position_size()
+    #     order_list = self.api.get_orders()
+    #     num_active_orders = len(order_list)
+
+    #     print('checking for previous state')
+
+    #     if (pos_size > 0):
+    #         print('Previous position exits:')
 
 
-    def continue_saved_state(total_entry_exit_orders):
+    #     elif (num_active_orders > 0):
+    #         print('filling order lists: ')
 
+    #     else
 
-        pos_check = self.api.get_position_size()
-        num_orders = self.api.get_orders()
-
-        print('checking for previous state')
-        if self.api.get_position_size() > 0:
-            print('Previous position exits:')
-            print('filling orders: ')
-
-            
-
-        if len(self.api.get_orders()) > 0:
-            order_check = True
+    # async def test_func(self):
+    #     await asyncio.sleep(3)
+    #     self.api.place_order(self.api.last_price() + 400, 'Limit', 'Buy', 10, 0, False, 'test1234')
 
 
     async def get_last_price(self):
@@ -232,9 +241,43 @@ class Strategy_DCA:
         secondary_entry_2_input_quantity = int(secondary_pos_input_quantity_2 / total_secondary_orders_2)
         secondary_exit_2_input_quantity = secondary_entry_2_input_quantity * (1 - percent_rollover)
 
+        # determine_grid_size, currently by largest set profit * orders:
+        active_position_entry_price = None
+        pos_entry_price = None
+        grid_margin = 200
+        grid_percent_range = profit_percent_1 * total_secondary_orders_1
+        grid_range_price = 0
+        existing_grid = False
+        # grid_range_price = calc().calc_percent_difference(self.entry_side, 'entry', entry_price, grid_percent_range)
+
+        #TODO: Change waiting_for_trend to True when running, False for test purposes
+        waiting_for_trend = True
         ##TEST##
         test_flag = True
-        while test_flag == True:
+        while (test_flag):
+
+            print(f'\ngrid_range_price: {grid_range_price}')
+            print(f'waiting_for_trend: {waiting_for_trend}')
+
+            while (waiting_for_trend):
+                last_price = await self.ws.get_last_price()
+                print('in waiting for trend...')
+                if (existing_grid == True):
+                    
+                    if (self.entry_side == 'Buy') and (last_price > grid_range_price) \
+                        or ((self.entry_side == 'Sell') and (last_price < grid_range_price)):
+                        print('price has returned to grid')
+                        waiting_for_trend = False
+
+                    else:
+                        print('price is outside of grid')
+                        print(f'last_price: {last_price} ---> grid_range: {grid_range_price}')    
+                        print('outside of grid, waiting for input')
+                        print(f'trend_reversal: {self.trend_reversal}')
+
+                else:
+                    print('no grids, waiting on trend')
+
 
             active_position_size = self.api.get_position_size()
             slipped_exit_quantity = 0
@@ -268,7 +311,6 @@ class Strategy_DCA:
                         active_position_size = 0
 
             if active_position_size == 0:
-
                 print('\initializing all order lists: \n')
                 self.active_orders_list = dca_logic.initialize_orders_list(total_entry_exit_orders)
                 self.filled_orders_list = []
@@ -292,8 +334,13 @@ class Strategy_DCA:
             else:
                 await asyncio.sleep(0.5)
                 await self.update_secondary_orders(total_entry_exit_orders, profit_percent_1, profit_percent_2)
-
                 print('exit update_secondary_orders')
+
+
+
+
+
+
 
 
             current_orders_len = len(self.api.get_orders())
@@ -301,30 +348,25 @@ class Strategy_DCA:
                 print('\ntoo many orders, breaking: ')
                 print(f'total_entry_exit_orders: {total_entry_exit_orders}')
                 print(f'current_orders_len: {current_orders_len}')
-                
                 test_flag = False
+
+
+
 
     async def create_main_pos_entry_exit(self, order_type, entry_side, main_pos_input_quantity, profit_percent_2, total_exit_orders):
 
         entry_link_id = 'open'
         exit_link_id = 'main'
 
-        if entry_side == 'Buy':
-            long_short = 'long'
-            exit_side = "Sell"
-        else:
-            long_short = 'short'
-            exit_side = 'Buy'
-
         if (order_type == 'Market'):
             print('\ncreating Market main_pos entry: ')
-            self.api.place_order(self.api.last_price(), 'Market', entry_side, main_pos_input_quantity, 0, False, entry_link_id)
+            self.api.place_order(self.api.last_price(), 'Market', self.entry_side, main_pos_input_quantity, 0, False, entry_link_id)
             print('\ncreating main_pos exit: ')
         else:
             # force initial Main Pos limit close order
             print('\nforcing Limit main_pos entry: ')
             limit_price_difference = self.limit_price_difference
-            await self.api.force_limit_order(entry_side, main_pos_input_quantity, limit_price_difference, 0, False, entry_link_id)
+            await self.api.force_limit_order(self.entry_side, main_pos_input_quantity, limit_price_difference, 0, False, entry_link_id)
 
         print('\ncreating main pos exits: ')
         main_pos_entry = round(self.api.get_active_position_entry_price(), 0)                
@@ -342,9 +384,9 @@ class Strategy_DCA:
             profit_percent = profit_percent_2 * num_order
             print(f'profit_percent {profit_percent}')
             print(f'num_order {num_order}')
-            price = calc().calc_percent_difference(long_short, 'exit', start_price, profit_percent)
+            price = calc().calc_percent_difference(self.entry_side, 'exit', start_price, profit_percent)
             print(f'price: {price}')
-            self.api.place_order(price, 'Limit', exit_side, input_quantity, 0, True, link_id)
+            self.api.place_order(price, 'Limit', self.exit_side, input_quantity, 0, True, link_id)
             num_order -= 1
             input_quantity = input_quantity_2
                     
@@ -354,11 +396,6 @@ class Strategy_DCA:
             secondary_entry_1_input_quantity, secondary_entry_2_input_quantity):
 
         global cancelled_orders_list
-
-        if self.entry_side == 'Buy':
-            long_short = 'long'
-        else:
-            long_short = 'short'
 
         # create buy/sell orders dict: 
         orders_dict = dca_logic.get_orders_dict(self.entry_side, self.api.get_orders())
@@ -393,14 +430,14 @@ class Strategy_DCA:
                 input_quantity = secondary_entry_1_input_quantity
                 link_name = 'pp_1'
                 profit_percent = profit_percent_1
-                entry_price = calc().calc_percent_difference(long_short, 'entry', secondary_1_entry_price, profit_percent)
+                entry_price = calc().calc_percent_difference(self.entry_side, 'entry', secondary_1_entry_price, profit_percent)
                 secondary_1_entry_price = entry_price
                 secondary_2_entry_price = entry_price
             else: 
                 input_quantity = secondary_entry_2_input_quantity
                 link_name = 'pp_2'
                 profit_percent = profit_percent_2
-                entry_price = calc().calc_percent_difference(long_short, 'entry', secondary_2_entry_price, profit_percent)
+                entry_price = calc().calc_percent_difference(self.entry_side, 'entry', secondary_2_entry_price, profit_percent)
                 secondary_2_entry_price = entry_price               
 
             if (x <= available_entry_orders):
@@ -451,46 +488,45 @@ class Strategy_DCA:
                 link_id_pos = closed_order['link_id_pos']
                 link_id = closed_order['order_link_id']
                 link_name = closed_order['link_name']
-
+                leaves_qty = closed_order['leaves_qty']
                 new_link_id = dca_logic.create_link_id(link_name, link_id_pos)
 
-                if (link_id_pos == 1):
-                    print('\n link_id_pos = 1 ... create trade record break:')
-                    await self.create_trade_record(closed_order)
+                if (leaves_qty == 0):
+                    if (link_id_pos == 1):
+                        print('\n link_id_pos = 1 ... create trade record break:')
+                        await self.create_trade_record(closed_order)
 
 
-                elif (current_num_orders == total_entry_exit_orders):
-                    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-                    print('Too many orders, Skipping: ')
-                    print(f'current_num_orders: {current_num_orders}\n')
-                    print('')
-
-                else:
-                    await asyncio.sleep(0)
-                    if (order_status == 'Cancelled'):
-                        reduce_only = closed_order['reduce_only']
-
-                    elif (side == self.entry_side):
-                        #create new exit order upon entry close
-                        print("\ncreating new exit order")
-                        side = self.exit_side
-                        price = calc().calc_percent_difference('long', 'exit', price, profit_percent)
-                        reduce_only = True
-
-                    elif (side == self.exit_side):
-                        print("\nCreating Trade Record")
-                        await self.create_trade_record(closed_order)            
-                        #create new entry order upon exit close
-                        print('creating new entry order')
-                        side = self.entry_side
-                        price = calc().calc_percent_difference('long', 'entry', price, profit_percent)
-                        reduce_only = False
+                    elif (current_num_orders == total_entry_exit_orders):
+                        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                        print('Too many orders, Skipping: ')
+                        print(f'current_num_orders: {current_num_orders}\n')
+                        print('')
 
                     else:
-                        print("... Something's fucking wrong in 'update_secondary_orders ...")
+                        await asyncio.sleep(0)
+                        if (order_status == 'Cancelled'):
+                            reduce_only = closed_order['reduce_only']
 
-                    self.api.place_order(price, 'Limit', side, input_quantity, 0, reduce_only, new_link_id)
+                        elif (side == self.entry_side):
+                            #create new exit order upon entry close
+                            print("\ncreating new exit order")
+                            side = self.exit_side
+                            price = calc().calc_percent_difference(self.entry_side, 'exit', price, profit_percent)
+                            reduce_only = True
 
+                        elif (side == self.exit_side):
+                            print("\nCreating Trade Record")
+                            await self.create_trade_record(closed_order)            
+                            #create new entry order upon exit close
+                            print('creating new entry order')
+                            side = self.entry_side
+                            price = calc().calc_percent_difference(self.entry_side, 'entry', price, profit_percent)
+                            reduce_only = False
+
+                        self.api.place_order(price, 'Limit', side, input_quantity, 0, reduce_only, new_link_id)
+                else:
+                    print(f'leaves_qty still open: {leaves_qty}')
 
                 print('\nclosed orders list len: ')
                 print(len(self.filled_orders_list))

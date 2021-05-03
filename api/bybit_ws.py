@@ -79,6 +79,7 @@ class Bybit_WS:
             await asyncio.sleep(self.interval)
             data = self.ws.get_data("order")
             if data:
+                # print(pprint.pprint(data))
                 return data
 
     async def instrument_info(self):
@@ -92,7 +93,6 @@ class Bybit_WS:
 
     async def get_last_price(self):
         self.ws.subscribe_instrument_info(symbol=self.symbol_pair)
-        
         last_price_key = 'last_price_e4'
         
         while True:

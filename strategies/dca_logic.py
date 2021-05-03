@@ -116,6 +116,7 @@ def get_updated_order_info(order, profit_percent_1, profit_percent_2):
                             'reduce_only' : order['reduce_only'], 
                             'order_id' : order['order_id'],
                             'order_link_id' : order_link_id,
+                            'leaves_qty' : order['leaves_qty']
                             })
 
         return updated_order
