@@ -101,7 +101,8 @@ class DCA_DB:
 
     def dcamp_replace_active_order(self, order):
         try:
-            link_id_pos = order['link_id_pos']
+            grid_pos = order['grid_pos']
+            link_id_pos = order['order_pos']
             link_name = order['link_name']
             side = order['side']
             status = order['order_status']

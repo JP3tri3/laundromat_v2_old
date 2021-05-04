@@ -145,6 +145,7 @@ def get_updated_order_info(order, profit_percent_1: float, profit_percent_2: flo
         order = order[0]
 
         order_link_id = order['order_link_id']
+        print(f'get_updated_order_info order id: {order_link_id}')
         extracted_link_id = extract_link_id(order_link_id)
         link_name = extracted_link_id['name']
         order_pos = extracted_link_id['order_pos']
@@ -160,7 +161,7 @@ def get_updated_order_info(order, profit_percent_1: float, profit_percent_2: flo
             profit_percent = 0
 
         updated_order = ({'grid_pos' : int(grid_pos),
-                            'link_name' : name,
+                            'link_name' : link_name,
                             'order_pos' : int(order_pos),
                             'side' : order['side'], 
                             'order_status': order['order_status'], 

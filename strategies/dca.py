@@ -42,6 +42,7 @@ class Strategy_DCA:
         self.filled_orders_list = []
         
         self.grids_dict = {}
+
         self.active_grid_pos = 0
 
         # Set Trade Values
@@ -52,6 +53,8 @@ class Strategy_DCA:
 
     # TODO: Fix main pos quantity thats savedw
     async def main(self):
+        # TODO: Testing, remove
+        global grids_dict
 
         #Set Trade Values
         total_secondary_orders_1 = 3
@@ -88,8 +91,8 @@ class Strategy_DCA:
                                                                 total_secondary_orders_1, secondary_orders_2, total_secondary_orders_2, percent_rollover, 
                                                                     self.max_active_positions, self.input_quantity, profit_percent_1, profit_percent_2, 
                                                                         total_entry_exit_orders, total_entry_orders, total_exit_orders))
-        # # # # test_task = asyncio.create_task(self.test_func())
-        # # # # await test_task 
+        # test_task = asyncio.create_task(self.test_func())
+        # await test_task 
 
 
         await task_ping_timer
@@ -99,15 +102,11 @@ class Strategy_DCA:
  
         # # # # # # TEST # # # # # #
 
-    # async def test_func(self, test_param: bool) -> bool:
+    # async def test_func(self) -> bool:
     #     await asyncio.sleep(3)
 
-    #     print(test_param)
-    #     # self.api.place_order(self.api.last_price() + 400, 'Limit', 'Buy', 10, 0, False, 'test1234')
-
-
-
-
+    #     self.api.place_order(self.api.last_price() - 400, 'Limit', 'Buy', 10, 0, False, 'main-1-1-356342343')
+    #     self.api.place_order(self.api.last_price() - 500, 'Limit', 'Buy', 10, 0, False, 'main-1-3-356342343')
 
     # collect orders via ws
     async def collect_orders(self, total_entry_exit_orders, profit_percent_1, profit_percent_2):
@@ -122,25 +121,15 @@ class Strategy_DCA:
         global filled_orders_list
         global grids_dict
 
-
-
         order = dca_logic.get_updated_order_info(order, profit_percent_1, profit_percent_2)
         grid_pos = order['grid_pos']
         order_pos = order['order_pos']
         order_status = order['order_status']
         print(f'\n order status: {order_status}\n')
 
-        print('')
-        print('')
-        print(f'grid_pos: {type(grid_pos)}')
-        print(f'order_pos: {type(order_pos)}')
-
         self.db.dcamp_replace_active_order(order)
 
         self.grids_dict[grid_pos]['active'][order_pos] = order
-        
-        print('view grid test: ')
-        print(pprint.pprint(self.grids_dict))
 
         if(order_status == 'Filled'):
             print('\nadding closed order to filled_orders_list')
@@ -311,7 +300,14 @@ class Strategy_DCA:
             print(f'slipped_exit_quantity: {slipped_exit_quantity}')
 
             if (slipped_exit_quantity > 0):
+
+
                 print('adding slipped quantity to first pos exit order: ')
+
+                print('!!! TEST !!!!!!!!!!!!')
+                print(f'active_grid_pos: {self.active_grid_pos}')
+                print(pprint.pprint(self.grids_dict))
+
                 first_position_exit_order = self.grids_dict[self.active_grid_pos]['active'][1]
                 first_position_exit_order_link_id = first_position_exit_order['order_link_id']
                 first_position_exit_quantity = first_position_exit_order['input_quantity']
@@ -389,7 +385,7 @@ class Strategy_DCA:
 
     async def create_main_pos_entry_exit(self, order_type, entry_side, main_pos_input_quantity, profit_percent_2, total_exit_orders):
 
-        entry_link_id = 'open'
+        entry_link_id = 'open-1-1-'
         exit_link_id = 'main'
 
         if (order_type == 'Market'):
@@ -519,7 +515,7 @@ class Strategy_DCA:
             link_id = closed_order['order_link_id']
             link_name = closed_order['link_name']
             leaves_qty = closed_order['leaves_qty']
-            new_link_id = dca_logic.create_link_id(link_name, order_pos)
+            new_link_id = dca_logic.create_link_id(link_name, self.active_grid_pos, order_pos)
 
             if (leaves_qty == 0):
                 if (order_pos == 1):
