@@ -210,8 +210,8 @@ class Bybit_Api:
     def change_order_size(self, input_quantity, order_link_id):
         input_quantity = int(input_quantity)
         try:
-            print(f"changing order size{order_link_id} - {input_quantity}")
-            order = self.client.Order.Order_replace(symbol=self.symbol_pair, order_link_id=order_link_id, p_r_qty=str(input_quantity).result())
+            print(f"changing order size: {order_link_id} - {input_quantity}")
+            order = self.client.Order.Order_replace(symbol=self.symbol_pair, order_link_id=order_link_id, p_r_qty=str(input_quantity)).result()
         except Exception as e:
             print("an exception occured - {}".format(e))
             return False
@@ -243,7 +243,11 @@ class Bybit_Api:
     def get_position_size(self):
         try:
             position_result = self.get_position_result()
-            return position_result['size']
+            if 'data' in position_result[0]:
+                position_size = position_result[0]['data']['size']
+            else:
+                position_size = position_result['size']
+            return position_size
         except Exception as e:
             print("an exception occured - {}".format(e))
 

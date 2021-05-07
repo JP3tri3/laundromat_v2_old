@@ -6,9 +6,10 @@ import mysql.connector
 
 class DCA_DB:
 
-    def __init__(self, trade_id, active_orders_table_name, create_table_t_f, dlt_table_t_f):
+    def __init__(self, trade_id, strat_name, instance, create_table_t_f, dlt_table_t_f):
         self.trade_id = trade_id
-        self.active_orders_table_name = active_orders_table_name
+        self.active_orders_table_name = strat_name + '_active_orders_' + str(instance)
+        self.slipped_orders_table_name = strat_name + '_slipped_orders_' + str(instance)
         self.trade_record_id = 0  
         
         self.db = mysql.connector.connect(
@@ -22,22 +23,28 @@ class DCA_DB:
         self.mycursor = self.db.cursor()
 
         # create db active orders table:
-        self.delete_table(active_orders_table_name, dlt_table_t_f)
-        self.dcamp_create_active_orders_table(create_table_t_f)
-        
+        self.delete_table(self.active_orders_table_name, dlt_table_t_f)
+        self.delete_table(self.slipped_orders_table_name, dlt_table_t_f)
+        self.dcamp_create_orders_table(self.active_orders_table_name, create_table_t_f)
+        self.dcamp_create_orders_table(self.slipped_orders_table_name, create_table_t_f)
 
         print('... DCA_DB initialized ...')
 
-    def initialize_active_orders_table(self, num_orders):
+
+    # initialize orders tables: 
+    def initialize_active_orders_table(self, grid_pos, num_orders: int):
+        print(f'\ninitialize_active_orders_table: ')
         for x in range(num_orders):
             x += 1
-            self.dcamp_create_active_orders_row(x)
+            self.dcamp_create_new_orders_row(self.active_orders_table_name, grid_pos, x)
 
-    def initialize_active_orders_table(self, num_orders):
+    def initialize_slipped_orders_table(self, grid_pos, num_orders: int):
+        print(f'\ninitialize_slipped_orders_table: ')
         for x in range(num_orders):
             x += 1
-            self.dcamp_create_active_orders_row(x)
+            self.dcamp_create_new_orders_row(self.slipped_orders_table_name, grid_pos, x)
 
+    # create trade record:
     def commit_trade_record(self, coin_gain, dollar_gain, entry_price, exit_price, percent_gain, input_quantity):
         global trade_record_id
 
@@ -70,11 +77,11 @@ class DCA_DB:
         ct = datetime.datetime.now()
         return ct
     
-    def dcamp_create_active_orders_table(self, create_table_t_f):
-
+    # create / delete tables:
+    def dcamp_create_orders_table(self, table_name, create_table_t_f):
         if create_table_t_f == True:
-            print('creating new active ordders table')
-            self.mycursor.execute("CREATE TABLE " +str(self.active_orders_table_name)+ " (trade_id VARCHAR(16), link_id_pos INT UNSIGNED, link_name VARCHAR(8), side VARCHAR(8), status VARCHAR(12), input_quantity INT UNSIGNED, price FLOAT UNSIGNED, profit_percent FLOAT UNSIGNED, link_id VARCHAR(50), order_id VARCHAR(50), time VARCHAR(50))")
+            print(f'creating new {table_name} orders table')
+            self.mycursor.execute(f"CREATE TABLE {table_name} (trade_id VARCHAR(16), grid_pos INT UNSIGNED, link_id_pos INT UNSIGNED, link_name VARCHAR(8), side VARCHAR(8), status VARCHAR(12), input_quantity INT UNSIGNED, price FLOAT UNSIGNED, profit_percent FLOAT UNSIGNED, link_id VARCHAR(50), order_id VARCHAR(50), time VARCHAR(50))")
         else:
             print('create_table == False, not creating new table')
 
@@ -90,11 +97,12 @@ class DCA_DB:
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
 
-    def dcamp_create_active_orders_row(self, link_id_pos):
+    # active orders:
+    def dcamp_create_new_orders_row(self, table_name, grid_pos, link_id_pos):
         try:
-            query = "INSERT INTO " +str(self.active_orders_table_name)+ " () VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+            query = (f"INSERT INTO {table_name} () VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)")
             print(query)
-            self.mycursor.execute(query,(self.trade_id, link_id_pos, 'empty', 'empty', 'empty', 0, 0, 0, 'empty', 'empty', 'empty'))
+            self.mycursor.execute(query,(self.trade_id, grid_pos, link_id_pos, 'empty', 'empty', 'empty', 0, 0, 0, 'empty', 'empty', 'empty'))
             self.db.commit()
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
@@ -112,8 +120,11 @@ class DCA_DB:
             link_id = order['order_link_id']
             order_id = order['order_id']
 
-            query = "UPDATE " +str(self.active_orders_table_name)+ " SET link_name='" +str(link_name)+ "', side='" +str(side)+ "', profit_percent='" +str(profit_percent)+"', status='" +str(status)+ "', input_quantity=" +str(input_quantity)+ ", price=" +str(price)+ ", profit_percent=" +str(profit_percent)+ ", link_id='" +str(link_id)+ "', order_id='" +str(order_id)+ "', time='" +str(self.time_stamp())+ "' WHERE link_id_pos=" +str(link_id_pos) 
+            #TODO: Fix searching for row by multiple column conditions
+            query = (f"UPDATE {self.active_orders_table_name} SET link_name= {link_name}, side={side}, profit_percent={profit_percent}, status={status}, input_quantity={input_quantity}, price={price}, profit_percent={profit_percent}, link_id={link_id}, order_id={order_id}, time={self.time_stamp()} WHERE link_id_pos={link_id_pos}, grid_pos={grid_pos}")
             print(query)
+            print('')
+
             self.mycursor.execute(query)
             self.db.commit()
         except mysql.connector.Error as error:
@@ -165,3 +176,25 @@ class DCA_DB:
             return result[0][0]
         except mysql.connector.Error as error:
             print("Failed to retrieve record from database: {}".format(error))
+
+
+    #TODO: Testing, remove
+    # def test_dcamp_replace_active_order(self):
+    #     try:
+    #         grid_pos = 5
+    #         link_id_pos = 5
+    #         link_name = 'test'
+    #         side = 'buy'
+    #         status = 'active'
+    #         input_quantity = 12
+    #         price = 44.3
+    #         profit_percent = 0.33
+    #         link_id = 'test'
+    #         order_id = 'test'
+
+    #         query = "UPDATE " +str(self.active_orders_table_name)+ " SET link_name='" +str(link_name)+ "', side='" +str(side)+ "', profit_percent='" +str(profit_percent)+"', status='" +str(status)+ "', input_quantity=" +str(input_quantity)+ ", price=" +str(price)+ ", profit_percent=" +str(profit_percent)+ ", link_id='" +str(link_id)+ "', order_id='" +str(order_id)+ "', time='" +str(self.time_stamp())+ "' WHERE link_id_pos=" +str(link_id_pos) 
+    #         print(query)
+    #         self.mycursor.execute(query)
+    #         self.db.commit()
+    #     except mysql.connector.Error as error:
+    #         print("Failed to update record to database: {}".format(error))

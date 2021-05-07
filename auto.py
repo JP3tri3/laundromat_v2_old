@@ -7,9 +7,10 @@ import asyncio
 
 api_key = config.BYBIT_TESTNET_API_KEY
 api_secret = config.BYBIT_TESTNET_API_SECRET
-leverage = 5
 symbol_pair = 'BTCUSD'
-input_quantity = 100 * leverage
+input_amount = 100
+leverage = 5
+input_quantity = input_amount * leverage
 max_active_positions = 10
 strat_id = 'dcamp'
 trade_id = 'bybit_auto_1'

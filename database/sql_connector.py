@@ -67,6 +67,9 @@ mycursor = db.cursor()
 # mycursor.execute("ALTER TABLE Strategy CHANGE name id VARCHAR(50)")
 
 
+
+
+
 ## Update Values
 def updateTableValue(table_name, id_name, column_name, value):
     try:

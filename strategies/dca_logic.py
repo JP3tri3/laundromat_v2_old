@@ -5,13 +5,13 @@ import pprint
 
 # create dict to store existing grid:
 
-def initialize_grid(size):
+def initialize_grid(size, grid_range_price, grid_pos_size):
     print('\n...initializing grid dict...\n')
     # Store previous grid
     grid_dict = {}
 
-    grid_dict['range_price'] = 0
-    grid_dict['pos_size'] = 0
+    grid_dict['range_price'] = grid_range_price
+    grid_dict['pos_size'] = grid_pos_size
     grid_dict['active'] = initialize_orders_list(size)
     grid_dict['cancelled'] = []
     grid_dict['slipped'] = []
@@ -36,37 +36,42 @@ def create_link_id(name_id, grid_pos, order_pos):
 
 # extract order name / grid pos / order pos from link id
 def extract_link_id(link_id):
-    kv_dict = {}
+    try:
+    
+        kv_dict = {}
 
-    max_custom_id_length = 14
-    name = ''
-    grid_pos = ''
-    order_pos = ''
-    attach = '-'
-    cycle = 0
+        max_custom_id_length = 14
+        name = ''
+        grid_pos = ''
+        order_pos = ''
+        attach = '-'
+        cycle = 0
 
-    for x in range(max_custom_id_length):
-        if (link_id[x] != attach):
-            char = link_id[x]
-            if (cycle == 0):
-                name += char
-            elif (cycle == 1):
-                grid_pos += char
-            elif (cycle == 2):
-                order_pos += char
+        for x in range(max_custom_id_length):
+            if (link_id[x] != attach):
+                char = link_id[x]
+                if (cycle == 0):
+                    name += char
+                elif (cycle == 1):
+                    grid_pos += char
+                elif (cycle == 2):
+                    order_pos += char
+                else:
+                    break
             else:
-                break
-        else:
-            cycle += 1
+                cycle += 1
 
-    grid_pos = int(grid_pos)
-    order_pos = int(order_pos)
+        grid_pos = int(grid_pos)
+        order_pos = int(order_pos)
 
-    kv_dict['name'] = name
-    kv_dict['grid_pos'] = grid_pos
-    kv_dict['order_pos'] = order_pos
+        kv_dict['name'] = name
+        kv_dict['grid_pos'] = grid_pos
+        kv_dict['order_pos'] = order_pos
 
-    return kv_dict
+        return kv_dict
+    except Exception as e:
+        print("an exception occured - {}".format(e))
+        return False
 
 # extract orders for grid: 
 
