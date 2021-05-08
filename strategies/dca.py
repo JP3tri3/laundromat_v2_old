@@ -44,6 +44,7 @@ class Strategy_DCA:
 
         # TODO: Create checks for if active_grid_pos in link id isn't accurate
         self.active_grid_pos = 0
+        self.grid_range_price = 0
 
         # Set Trade Values
         self.profit_percent_1 = 0
@@ -151,6 +152,22 @@ class Strategy_DCA:
         first_position_exit_order = self.grids_dict[self.active_grid_pos]['active'][1]
         print('first pos exit order test !!!!!')
         print(first_position_exit_order)
+
+
+    # initialize from saved state:
+
+    def initialized_saved_state(self):
+        global active_grid_pos
+
+
+        
+
+        orders_list = self.api.get_order()
+        num_active_orders = len(orders_list)
+        position_size = self.api.get_position_size()
+
+
+
 
     # collect orders via ws
     async def collect_orders(self, total_entry_exit_orders, profit_percent_1, profit_percent_2):
@@ -272,8 +289,8 @@ class Strategy_DCA:
         #TODO: optimize grid_range_margin margin
         grid_range_margin = 0.01
         grid_percent_range = (profit_percent_1 * total_secondary_orders_1) + grid_range_margin
-        grid_range_price = 0
-        grid_pos_size = 0     
+        grid_range_price = self.grid_range_price
+        grid_pos_size = 0
 
         #TODO: Testing, remove:
         new_trend = True
@@ -285,12 +302,15 @@ class Strategy_DCA:
 
             #TODO: Remove set new_trend for testing:
             # new_trend = await self.determine_grid_and_trend(self.active_grid_pos, grid_range_price)
-
             if (new_trend):
                 print('init new grid: ')
                 # initialize new grid:
                 self.active_grid_pos += 1
                 self.grids_dict[self.active_grid_pos] = dca_logic.initialize_grid(total_entry_exit_orders, 0, 0)
+                self.db.replace_trade_data_value('active_grid_pos', self.active_grid_pos)
+
+                # sys.exit("Program Terminated")
+
                 # initialize db active orders table rows
                 self.db.initialize_active_orders_table(self.active_grid_pos, total_entry_exit_orders)
                 
@@ -393,10 +413,6 @@ class Strategy_DCA:
             await self.create_secondary_orders(main_pos_entry, total_secondary_orders_1, secondary_orders_2, 
                         total_entry_orders, profit_percent_1, profit_percent_2, secondary_entry_1_input_quantity, 
                             secondary_entry_2_input_quantity)
-
-            # #TODO: Testing, remove:
-            # print('slipped quantity > 0')    
-            # sys.exit("Program Terminated")
 
 
     async def determine_grid_and_trend(self, active_grid_pos: int, grid_range_price: float):
