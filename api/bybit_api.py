@@ -5,6 +5,7 @@ from logic.calc import Calc as calc
 from time import time, sleep
 import asyncio
 import time
+import pprint
 # import random
 # import string
 
@@ -229,8 +230,15 @@ class Bybit_Api:
 
 #position:
     def get_position_result(self):
-        position_result = self.client.Positions.Positions_myPosition(symbol=self.symbol_pair).result()
-        return position_result[0]['result']
+        try:
+            position_result = self.client.Positions.Positions_myPosition(symbol=self.symbol_pair).result()
+            position_result = position_result[0]['result']
+            if 'data' in position_result[0]:
+                return position_result[0]['data']
+            else:
+                return position_result
+        except Exception as e:
+            print("an exception occured - {}".format(e))
 
     def get_position_side(self):
         try:
@@ -243,10 +251,7 @@ class Bybit_Api:
     def get_position_size(self):
         try:
             position_result = self.get_position_result()
-            if 'data' in position_result[0]:
-                position_size = position_result[0]['data']['size']
-            else:
-                position_size = position_result['size']
+            position_size = position_result['size']
             return position_size
         except Exception as e:
             print("an exception occured - {}".format(e))
