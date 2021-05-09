@@ -12,6 +12,7 @@ def initialize_grid(size, grid_range_price, grid_pos_size):
 
     grid_dict['range_price'] = grid_range_price
     grid_dict['pos_size'] = grid_pos_size
+    grid_dict['pos_price'] = 0
     grid_dict['active'] = initialize_orders_list(size)
     grid_dict['cancelled'] = []
     grid_dict['slipped'] = []

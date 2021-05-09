@@ -110,15 +110,36 @@ class Strategy_DCA:
         if test_strat:
             
             print(" !!!!! TESTING !!!!")
-
             self.active_grid_pos += 1
-            print(f'\ngrid_pos: {self.active_grid_pos}\n')
-            self.grids_dict[self.active_grid_pos] = dca_logic.initialize_grid(total_entry_exit_orders, 0, 0)
+            # print(f'\ngrid_pos: {self.active_grid_pos}\n')
 
-            task_collect_orders = asyncio.create_task(self.collect_orders_test(total_entry_exit_orders, profit_percent_1, profit_percent_2))
-            test_task = asyncio.create_task(self.test_func())
-            await task_collect_orders  
-            await test_task 
+            self.db.replace_trade_data_value('active_grid_pos', 2)
+
+            order = {'grid_pos': 1,
+                        'input_quantity': 10,
+                        'leaves_qty': 10,
+                        'link_name': 'main',
+                        'order_id': 'b06a9d22-1c9f-4767-a566-028f13648703',
+                        'order_link_id': 'main-1-1-3563423431620527220.584705',
+                        'order_pos': 1,
+                        'order_status': 'Cancelled',
+                        'price': 58571.0,
+                        'profit_percent': 0.0004,
+                        'reduce_only': False,
+                        'side': 'Buy'}
+            
+            print(pprint.pprint(order))
+
+            # self.db.dcamp_create_new_order_row(order)
+
+            # self.db.dcamp_replace_slipped_order_status(order)
+
+            # self.grids_dict[self.active_grid_pos] = dca_logic.initialize_grid(total_entry_exit_orders, 0, 0)
+
+            # task_collect_orders = asyncio.create_task(self.collect_orders_test(total_entry_exit_orders, profit_percent_1, profit_percent_2))
+            # test_task = asyncio.create_task(self.test_func())
+            # await task_collect_orders  
+            # await test_task 
 
     async def test_func(self):
         await asyncio.sleep(2)
@@ -134,39 +155,58 @@ class Strategy_DCA:
         order = await self.ws.get_order()
 
         new_order = dca_logic.get_updated_order_info(order, profit_percent_1, profit_percent_2)
-
-        grid_pos = new_order['grid_pos']
-
-        print(f'grid_pos: {grid_pos}')
-
         print(pprint.pprint(new_order))
+        # grid_pos = new_order['grid_pos']
 
-        if (grid_pos != self.active_grid_pos):
-            print('!! grid_pos: outside current grid !!')
-        order_pos = new_order['order_pos']
+        # print(f'grid_pos: {grid_pos}')
 
-        self.grids_dict[grid_pos]['active'][order_pos] = new_order
+        # print(pprint.pprint(new_order))
 
-        print(pprint.pprint(self.grids_dict))
+        # if (grid_pos != self.active_grid_pos):
+        #     print('!! grid_pos: outside current grid !!')
+        # order_pos = new_order['order_pos']
 
-        first_position_exit_order = self.grids_dict[self.active_grid_pos]['active'][1]
-        print('first pos exit order test !!!!!')
-        print(first_position_exit_order)
+        # self.grids_dict[grid_pos]['active'][order_pos] = new_order
+
+        # print(pprint.pprint(self.grids_dict))
+
+        # first_position_exit_order = self.grids_dict[self.active_grid_pos]['active'][1]
+        # print('first pos exit order test !!!!!')
+        # print(first_position_exit_order)
 
 
     # initialize from saved state:
-
-    def initialized_saved_state(self):
+    def initialized_saved_state(self, total_order_size):
         global active_grid_pos
+        global grids_dict
 
-
-        
+        print(' ... loading saved state ... ')
 
         orders_list = self.api.get_order()
         num_active_orders = len(orders_list)
         position_size = self.api.get_position_size()
 
+        if (position_size == 0) and (num_active_orders == 0):
+            print('no existing state')
+        elif (position_size > 0 and num_active_orders == 0):
+            print(f'active position size: {position_size}')
+            print(f'num_active_orders: {num_active_orders}')
 
+            active_grid_pos = 0
+
+            for order in orders_list:
+                order_link_id = order['order_link_id']
+                updated_order = get_updated_order_info(order)
+                grid_pos = updated_order['grid_pos']
+                order_pos = updated_order['order_pos']
+                if (grid_pos > active_grid_pos):
+                    self.grids_dict[grid_pos] = dca_logic.initialize_grid(total_order_size, 0, 0)
+                    active_grid_pos = grid_pos
+                self.grids_dict[grid_pos]['active'][order_pos] = updated_order
+        
+        # need to determine main pos locations
+        
+        
 
 
     # collect orders via ws
@@ -199,6 +239,9 @@ class Strategy_DCA:
             print(f'\n order status: {order_status}\n')
 
             if (link_name == 'open'):
+                main_pos_price = order['price']
+                self.grids_dict[grid_pos]['main_pos_price'] = main_pos_price
+                
                 print(f'skip store order: {link_name}')
             else:
                 self.grids_dict[grid_pos]['active'][order_pos] = order
@@ -314,6 +357,8 @@ class Strategy_DCA:
                 # initialize db active orders table rows
                 self.db.initialize_active_orders_table(self.active_grid_pos, total_entry_exit_orders)
                 
+
+
                 #TODO: Testing, remove:
                 new_trend = False
                 
@@ -356,7 +401,6 @@ class Strategy_DCA:
         
         slipped_exit_quantity = 0
         #TODO: Calc grid position size:
-        active_pos_check = True
 
         if (active_position_size > 0):
             # Handle checking active position, updating entry price
@@ -460,6 +504,7 @@ class Strategy_DCA:
         else:
             # force initial Main Pos limit close order
             print('\nforcing Limit main_pos entry: ')
+            #TODO: Capture entry price for chasing limit in ws orders
             limit_price_difference = self.limit_price_difference
             main_pos_order_link_id = await self.api.force_limit_order(self.entry_side, main_pos_input_quantity, limit_price_difference, 0, False, entry_link_id)
 

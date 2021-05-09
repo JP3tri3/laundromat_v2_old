@@ -11,6 +11,7 @@ class DCA_DB:
         self.active_orders_table_name = strat_name + '_active_orders_' + str(instance)
         self.slipped_orders_table_name = strat_name + '_slipped_orders_' + str(instance)
         self.filled_orders_table_name = strat_name + '_filled_orders_' + str(instance)
+        self.grids_table = strat_name + '_grids_' + str(instance)
         self.trade_data_table_name = strat_name + '_trade_data'
         self.trade_record_id = 0  
         
@@ -38,6 +39,7 @@ class DCA_DB:
             self.delete_table(self.slipped_orders_table_name)
             self.delete_table(self.filled_orders_table_name)
             self.delete_table(self.trade_data_table_name)
+            self.delete_table(self.grids_table)
         else:
             print('not removing tables')
 
@@ -48,6 +50,7 @@ class DCA_DB:
             self.dcamp_create_orders_table(self.slipped_orders_table_name)
             self.dcamp_create_orders_table(self.filled_orders_table_name)
             self.dcamp_create_new_dcamp_trade_data_table(self.trade_data_table_name, self.trade_id)
+            self.dcamp_create_new_grids_table(self.grids_table)
         else:
             print('not creating new tables\n')
 
@@ -126,16 +129,46 @@ class DCA_DB:
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
 
+
+    def dcamp_create_new_grids_table(self, table_name):
+        try:
+            print(f'creating new {table_name} orders table')
+            self.mycursor.execute(f"CREATE TABLE {table_name} (grid_pos INT UNSIGNED, grid_price_range FLOAT UNSIGNED, pos_size FLOAT UNSIGNED, time VARCHAR(50))")
+
+            time = str(self.time_stamp())
+            
+            query = (f"INSERT INTO {table_name} () VALUES (%s, %s, %s, %s)")
+            vals = (0, 0.0, 0, 0, 0.0, time)
+
+            print(query)
+            self.mycursor.execute(query, vals)
+            self.db.commit()
+
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
+
+
+    def dcamp_create_new_grid_row(self):
+        try:
+            time = str(self.time_stamp())
+            query = (f"INSERT INTO {table_name} () VALUES (%s, %s, %s, %s)")
+            vals = (0, 0.0, 0, 0, 0.0, time)
+            print(query)
+            self.mycursor.execute(query, vals)
+            self.db.commit()
+        except mysql.connector.Error as error:
+            print("Failed to update record to database: {}".format(error))
+
 
     #TODO: MAKE WORK 
     def replace_trade_data_value(self, position, value):
         try:
             table_name = self.trade_data_table_name
             trade_id = self.trade_id
-            query = (f"UPDATE {table_name} SET "+str(position)+" = "+str(value)+" WHERE trade_id = '"+str(trade_id)+"'")
-            vals = (position, value, trade_id)
+
+            query = (f"UPDATE {self.trade_data_table_name} SET {position} = %s WHERE trade_id = %s")
+            vals = (value, trade_id)
+    
             print(query)
             self.mycursor.execute(query, vals)
             self.db.commit()
@@ -184,7 +217,6 @@ class DCA_DB:
             self.db.commit()
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
-
 
     def dcamp_create_new_empty_orders_row(self, table_name: str, grid_pos: int, link_id_pos: int):
         try:
@@ -236,7 +268,7 @@ class DCA_DB:
             time = str(self.time_stamp())
 
             query = (f"UPDATE {self.slipped_orders_table_name} SET status = %s, time = %s WHERE link_id = %s")
-            vals = (link_id, time, grid_id)
+            vals = (status, time,link_id)
 
             print(query, vals)
             print('')
