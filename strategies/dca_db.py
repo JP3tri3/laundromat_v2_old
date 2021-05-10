@@ -35,22 +35,22 @@ class DCA_DB:
         print(f'\ndelete all tables: {dlt_table_t_f}')
         if (dlt_table_t_f == True):
             print('removing all tables:')
-            self.delete_table(self.active_orders_table_name)
+            # self.delete_table(self.active_orders_table_name)
             self.delete_table(self.slipped_orders_table_name)
             self.delete_table(self.filled_orders_table_name)
             self.delete_table(self.trade_data_table_name)
-            self.delete_table(self.grids_table_name)
+            # self.delete_table(self.grids_table_name)
         else:
             print('not removing tables')
 
         print(f'create all tables: {create_table_t_f}')
         if (create_table_t_f == True):
             print('creating all tables')
-            self.dcamp_create_orders_table(self.active_orders_table_name)
+            # self.dcamp_create_orders_table(self.active_orders_table_name)
             self.dcamp_create_orders_table(self.slipped_orders_table_name)
             self.dcamp_create_orders_table(self.filled_orders_table_name)
             self.dcamp_create_new_trade_data_table(self.trade_data_table_name, self.trade_id)
-            self.dcamp_create_new_grids_table(self.grids_table_name)
+            # self.dcamp_create_new_grids_table(self.grids_table_name)
         else:
             print('not creating new tables\n')
 
@@ -147,7 +147,6 @@ class DCA_DB:
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
 
-
     def dcamp_create_new_grid_row(self, grid_pos: int):
         try:
             print(f'dcamp_create_new_grid_row {grid_pos}')
@@ -156,6 +155,50 @@ class DCA_DB:
             vals = (grid_pos, 0.0, 0, 0, 0.0, 0.0, time)
             print(query)
             self.mycursor.execute(query, vals)
+            self.db.commit()
+        except mysql.connector.Error as error:
+            print("Failed to update record to database: {}".format(error))
+
+    def dcamp_remove_unused_grid_rows(self, grid_pos: int):
+        try:
+            table_name = self.grids_table_name
+            query = (f"select * from {table_name}")
+            self.mycursor.execute(query)
+            # get all records
+            records = self.mycursor.fetchall()
+            print(f'Total number of rows in table: {self.mycursor.rowcount}')
+
+            for row in records:
+                row_grid_pos = row[0]
+                if (row_grid_pos > grid_pos):
+                    self.dcamp_remove_row(table_name, row_grid_pos)
+
+        except mysql.connector.Error as error:
+            print("Failed to update record to database: {}".format(error))
+
+    def dcamp_remove_unused_active_orders_rows(self, grid_pos: int):
+        try:
+            table_name = self.active_orders_table_name
+            query = (f"select * from {table_name}")
+            self.mycursor.execute(query)
+            # get all records
+            records = self.mycursor.fetchall()
+            print(f'Total number of rows in table: {self.mycursor.rowcount}')
+
+            for row in records:
+                row_grid_pos = row[0]
+                if (row_grid_pos > grid_pos):
+                    self.dcamp_remove_row(table_name, row_grid_pos)
+
+        except mysql.connector.Error as error:
+            print("Failed to update record to database: {}".format(error))
+
+    def dcamp_remove_row(self, table_name, grid_pos: int):
+        try:
+            print(f'dcamp_remove_row {grid_pos}')
+            query = (f"DELETE FROM {table_name} WHERE grid_pos = {grid_pos}")
+            print(query)
+            self.mycursor.execute(query)
             self.db.commit()
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
@@ -173,6 +216,31 @@ class DCA_DB:
             self.db.commit()
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
+
+    def get_grid_row_values(self, grid_pos):
+        
+        try:
+            table_name = 'trades'
+            kv_dict = {}
+            column_query = "SHOW COLUMNS FROM " + str(table_name)
+            column_name_result = self.mycursor.execute(column_query)
+            column_name_list = self.mycursor.fetchall()
+
+            row_query = "Select * FROM " + str(table_name) + " WHERE grid_pos = '" + str(grid_pos) + "' LIMIT 0,1"
+            row_result = self.mycursor.execute(row_query)
+            row_list = self.mycursor.fetchall()
+            row_list = row_list[0]
+
+            for x in range(len(row_list)):        
+                kv_pair = [(column_name_list[x][0], row_list[x])]
+                kv_dict.update(kv_pair)
+
+            self.db.commit()
+
+            return(kv_dict)
+
+        except mysql.connector.Error as error:
+            print("Failed to retrieve record from database: {}".format(error))
 
     def replace_trade_data_value(self, position, value):
         try:
@@ -192,7 +260,7 @@ class DCA_DB:
     def dcamp_create_orders_table(self, table_name):
         try:
             print(f'creating new {table_name} orders table')
-            self.mycursor.execute(f"CREATE TABLE {table_name} (trade_id VARCHAR(16), id VARCHAR(8), grid_pos INT UNSIGNED, link_id_pos INT UNSIGNED, link_name VARCHAR(8), side VARCHAR(8), status VARCHAR(12), input_quantity INT UNSIGNED, price FLOAT UNSIGNED, profit_percent FLOAT UNSIGNED, link_id VARCHAR(50), order_id VARCHAR(50), time VARCHAR(50))")
+            self.mycursor.execute(f"CREATE TABLE {table_name} (grid_pos INT UNSIGNED, trade_id VARCHAR(16), id VARCHAR(8), link_id_pos INT UNSIGNED, link_name VARCHAR(8), side VARCHAR(8), status VARCHAR(12), input_quantity INT UNSIGNED, price FLOAT UNSIGNED, profit_percent FLOAT UNSIGNED, link_id VARCHAR(50), order_id VARCHAR(50), time VARCHAR(50))")
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
 
