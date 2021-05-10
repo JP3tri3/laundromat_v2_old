@@ -11,7 +11,7 @@ class DCA_DB:
         self.active_orders_table_name = strat_name + '_active_orders_' + str(instance)
         self.slipped_orders_table_name = strat_name + '_slipped_orders_' + str(instance)
         self.filled_orders_table_name = strat_name + '_filled_orders_' + str(instance)
-        self.grids_table = strat_name + '_grids_' + str(instance)
+        self.grids_table_name = strat_name + '_grids_' + str(instance)
         self.trade_data_table_name = strat_name + '_trade_data'
         self.trade_record_id = 0  
         
@@ -39,7 +39,7 @@ class DCA_DB:
             self.delete_table(self.slipped_orders_table_name)
             self.delete_table(self.filled_orders_table_name)
             self.delete_table(self.trade_data_table_name)
-            self.delete_table(self.grids_table)
+            self.delete_table(self.grids_table_name)
         else:
             print('not removing tables')
 
@@ -49,8 +49,8 @@ class DCA_DB:
             self.dcamp_create_orders_table(self.active_orders_table_name)
             self.dcamp_create_orders_table(self.slipped_orders_table_name)
             self.dcamp_create_orders_table(self.filled_orders_table_name)
-            self.dcamp_create_new_dcamp_trade_data_table(self.trade_data_table_name, self.trade_id)
-            self.dcamp_create_new_grids_table(self.grids_table)
+            self.dcamp_create_new_trade_data_table(self.trade_data_table_name, self.trade_id)
+            self.dcamp_create_new_grids_table(self.grids_table_name)
         else:
             print('not creating new tables\n')
 
@@ -113,7 +113,7 @@ class DCA_DB:
         ct = datetime.datetime.now()
         return ct
     
-    def dcamp_create_new_dcamp_trade_data_table(self, table_name: str, trade_id: str):
+    def dcamp_create_new_trade_data_table(self, table_name: str, trade_id: str):
         try:
             print(f'creating new {table_name} orders table')
             self.mycursor.execute(f"CREATE TABLE {table_name} (trade_id VARCHAR(16), active_grid_pos INT UNSIGNED, grid_price_range FLOAT UNSIGNED, closed_orders INT UNSIGNED, active_orders INT UNSIGNED, total_pos_size FLOAT UNSIGNED, time VARCHAR(50))")
@@ -130,15 +130,15 @@ class DCA_DB:
             print("Failed to update record to database: {}".format(error))
 
 
-    def dcamp_create_new_grids_table(self, table_name):
+    def dcamp_create_new_grids_table(self, table_name: str):
         try:
             print(f'creating new {table_name} orders table')
-            self.mycursor.execute(f"CREATE TABLE {table_name} (grid_pos INT UNSIGNED, grid_price_range FLOAT UNSIGNED, pos_size FLOAT UNSIGNED, time VARCHAR(50))")
+            self.mycursor.execute(f"CREATE TABLE {table_name} (grid_pos INT UNSIGNED, grid_range_price FLOAT UNSIGNED, pos_size FLOAT UNSIGNED, pos_price FLOAT UNSIGNED, slipped_ttl_qty FLOAT UNSIGNED, slipped_exit_qty FLOAT UNSIGNED, time VARCHAR(50))")
 
             time = str(self.time_stamp())
             
-            query = (f"INSERT INTO {table_name} () VALUES (%s, %s, %s, %s)")
-            vals = (0, 0.0, 0, 0, 0.0, time)
+            query = (f"INSERT INTO {table_name} () VALUES (%s, %s, %s, %s, %s, %s, %s)")
+            vals = (0, 0.0, 0, 0.0, 0.0, 0.0, time)
 
             print(query)
             self.mycursor.execute(query, vals)
@@ -148,19 +148,32 @@ class DCA_DB:
             print("Failed to update record to database: {}".format(error))
 
 
-    def dcamp_create_new_grid_row(self):
+    def dcamp_create_new_grid_row(self, grid_pos: int):
         try:
+            print(f'dcamp_create_new_grid_row {grid_pos}')
             time = str(self.time_stamp())
-            query = (f"INSERT INTO {table_name} () VALUES (%s, %s, %s, %s)")
-            vals = (0, 0.0, 0, 0, 0.0, time)
+            query = (f"INSERT INTO {self.grids_table_name} () VALUES (%s, %s, %s, %s, %s, %s, %s)")
+            vals = (grid_pos, 0.0, 0.0, 0.0, 0.0, 0.0, time)
             print(query)
             self.mycursor.execute(query, vals)
             self.db.commit()
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
 
+    def replace_grid_row_value(self, grid_pos, position, value):
+        try:
+            table_name = self.trade_data_table_name
+            trade_id = self.trade_id
 
-    #TODO: MAKE WORK 
+            query = (f"UPDATE {self.grids_table_name} SET {position} = %s WHERE grid_pos = %s")
+            vals = (value, grid_pos)
+    
+            print(query)
+            self.mycursor.execute(query, vals)
+            self.db.commit()
+        except mysql.connector.Error as error:
+            print("Failed to update record to database: {}".format(error))
+
     def replace_trade_data_value(self, position, value):
         try:
             table_name = self.trade_data_table_name
@@ -245,7 +258,7 @@ class DCA_DB:
 
             if (status == 'Cancelled'):
                 table_name = self.slipped_orders_table_name
-            elif (status == 'Filled'):
+            elif (status == 'Filled') or (status == 'PartiallyFilled'):
                 table_name = self.filled_orders_table_name
 
             query = (f"INSERT INTO {table_name} () VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)")

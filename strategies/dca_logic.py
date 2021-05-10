@@ -75,7 +75,6 @@ def extract_link_id(link_id):
         return False
 
 # extract orders for grid: 
-
 def get_orders_in_grid(grid_pos: int, order_list: list):
     lst = []
 
@@ -131,18 +130,35 @@ def get_grid_orders_dict(grid_pos: int, entry_side: str, order_list: list):
 
     return order_list_kv
 
-def get_total_quantity_and_ids_dict(order_list: list):
-    order_link_ids = []
-    total_quantity = 0
+def get_total_quantity_and_ids_dict(grid_orders_list: list, slipped_orders_list: list, 
+                                        entry_side: str):
+
+    if (entry_side == 'Buy'): exit_side = 'Sell'
+    else: exit_side = 'Buy'
+
+    exit_order_link_ids = []
+    total_entry_quantity = 0
+    total_exit_quantity = 0
 
     order_dict = {}
 
-    for order in order_list:
-            order_link_ids.append(order['order_link_id'])
-            total_quantity += order['qty']
+    slipped_orders_quantity = 0
+    for order in slipped_orders_list:
+        quantity = order['input_quantity']
+        slipped_orders_quantity += quantity
 
-    order_dict['order_link_ids'] = order_link_ids
-    order_dict['total_quantity'] = total_quantity
+    for order in grid_orders_list:
+        side = order['side']
+        if (side == entry_side):
+            total_entry_quantity += order['qty']
+        else:
+            exit_order_link_ids.append(order['order_link_id'])
+            total_exit_quantity += order['qty']
+
+    order_dict['exit_order_link_ids'] = exit_order_link_ids
+    order_dict['total_exit_quantity'] = total_exit_quantity
+    order_dict['total_entry_quantity'] = total_entry_quantity
+    order_dict['slipped_orders_quantity'] = slipped_orders_quantity
 
     return order_dict
 
@@ -151,7 +167,6 @@ def get_updated_order_info(order, profit_percent_1: float, profit_percent_2: flo
         order = order[0]
 
         order_link_id = order['order_link_id']
-        print(f'get_updated_order_info order id: {order_link_id}')
         extracted_link_id = extract_link_id(order_link_id)
         link_name = extracted_link_id['name']
         order_pos = extracted_link_id['order_pos']

@@ -8,6 +8,7 @@ import time
 import pprint
 # import random
 # import string
+import math
 
 
 class Bybit_Api:
@@ -127,6 +128,31 @@ class Bybit_Api:
             return kv_list    
         except Exception as e:
             print("an exception occured - {}".format(e))
+
+#trade records:
+
+    def get_trade_record(self):
+        epoch_string = str(int(time.time()) - 100)
+        trade_records = self.client.Execution.Execution_getTrades(symbol=self.symbol_pair, start_time=epoch_string).result()
+        trade_records = trade_records[0]['result']['trade_list']
+        return trade_records
+
+
+    def get_last_trade_price_record(self, order_link_id):
+        #TODO: Note: Last_trade_price in record may be different than actual w/ Market
+        trade_records = self.get_trade_record()
+        trade_price = 0.0
+        num_orders = 0
+
+        for record in trade_records:
+            if record['order_link_id'] == order_link_id:
+                trade_price += float(record['exec_price'])
+                num_orders += 1
+
+        if (trade_price == 0):
+            return trade_price
+        else:
+            return math.ceil(trade_price / num_orders)
 
 #orders:
     def place_order(self, price, order_type, side, input_quantity, stop_loss, reduce_only, link_id):
