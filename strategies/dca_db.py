@@ -304,7 +304,7 @@ class DCA_DB:
             grid_id = (f'{grid_pos}{link_id_pos}')
             query = (f"INSERT INTO {table_name} () VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)")
             print(query)
-            self.mycursor.execute(query,(self.trade_id, grid_id, grid_pos, link_id_pos, 'empty', 'empty', 'empty', 0, 0, 0, 'empty', 'empty', 'empty'))
+            self.mycursor.execute(query,(grid_pos, self.trade_id, grid_id, link_id_pos, 'empty', 'empty', 'empty', 0, 0, 0, 'empty', 'empty', 'empty'))
             self.db.commit()
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
