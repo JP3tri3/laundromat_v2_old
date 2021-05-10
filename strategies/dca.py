@@ -63,9 +63,9 @@ class Strategy_DCA:
         else: main_strat = True
         
         #Set Trade Values
-        total_secondary_orders_1 = 1
+        total_secondary_orders_1 = 3
 
-        secondary_orders_2 = 1
+        secondary_orders_2 = 2
         total_secondary_orders_2 = total_secondary_orders_1 * secondary_orders_2
 
         total_exit_orders_1 = 1
@@ -279,7 +279,7 @@ class Strategy_DCA:
             side = order['side']
             print(f'\n order status: {order_status}\n')
 
-            pos_size = self.grids_dict[grid_pos]['pos_size']
+            # pos_size = self.grids_dict[grid_pos]['pos_size']
 
             if (link_name == 'open'):
                 print(f'skip store order: {link_name}')
@@ -372,8 +372,6 @@ class Strategy_DCA:
         secondary_pos_input_quantity_1 = round(position_trade_quantity * secondary_pos_1_percent_of_total_quantity, 0)
         secondary_pos_input_quantity_2 = round(position_trade_quantity * secondary_pos_2_percent_of_total_quantity, 0)
 
-        position_trade_quantity = main_pos_input_quantity + secondary_pos_input_quantity_1 + secondary_pos_input_quantity_2
-
         secondary_entry_1_input_quantity = int(secondary_pos_input_quantity_1 / total_secondary_orders_1)
         secondary_exit_1_input_quantity = secondary_entry_1_input_quantity * (1 - percent_rollover)
 
@@ -404,7 +402,6 @@ class Strategy_DCA:
                 self.grids_dict[self.active_grid_pos] = dca_logic.initialize_grid(total_entry_exit_orders, 0, 0)
                 self.db.replace_trade_data_value('active_grid_pos', self.active_grid_pos)
                 self.db.dcamp_create_new_grid_row(self.active_grid_pos)
-                # sys.exit("Program Terminated")
 
                 # initialize db active orders table rows
                 self.db.initialize_active_orders_table(self.active_grid_pos, total_entry_exit_orders)
@@ -426,7 +423,7 @@ class Strategy_DCA:
             await self.handle_initial_entry_exit_orders(profit_percent_1, profit_percent_2, grid_percent_range, main_pos_input_quantity, 
                                                             total_entry_exit_orders, total_exit_orders, total_entry_orders, 
                                                                 total_secondary_orders_1, secondary_orders_2, secondary_entry_1_input_quantity, 
-                                                                    secondary_entry_2_input_quantity, position_trade_quantity)
+                                                                    secondary_entry_2_input_quantity)
 
 
             await asyncio.sleep(0.5)
@@ -439,61 +436,53 @@ class Strategy_DCA:
     async def handle_initial_entry_exit_orders (self, profit_percent_1, profit_percent_2, grid_percent_range, 
                                                 main_pos_input_quantity, total_entry_exit_orders, total_exit_orders, total_entry_orders,
                                                      total_secondary_orders_1, secondary_orders_2, secondary_entry_1_input_quantity, 
-                                                            secondary_entry_2_input_quantity, position_trade_quantity):
+                                                            secondary_entry_2_input_quantity):
         global grids_dict
         
         
 
         grid_orders_list = dca_logic.get_orders_in_grid(self.active_grid_pos, self.api.get_orders())
 
-        if (len(grid_orders_list) == 0):
-            grid_pos_size = 0
-            slipped_total_quantity = 0
-            slipped_exit_quantity = 0
+        slipped_orders_list = self.grids_dict[self.active_grid_pos]['slipped']
+        ids_and_quantity_dict = dca_logic.get_total_quantity_and_ids_dict(grid_orders_list, slipped_orders_list, self.entry_side)
 
-        else:
-            slipped_orders_list = self.grids_dict[self.active_grid_pos]['slipped']
-            ids_and_quantity_dict = dca_logic.get_total_quantity_and_ids_dict(grid_orders_list, slipped_orders_list, self.entry_side)
+        exit_link_ids_list = ids_and_quantity_dict['exit_order_link_ids']
+        
+        total_entry_quantity = ids_and_quantity_dict['total_entry_quantity']
+        total_exit_quantity = ids_and_quantity_dict['total_exit_quantity']
+        # slipped_entry_quantity = ids_and_quantity_dict['slipped_entry_quantity']
+        slipped_exit_quantity = ids_and_quantity_dict['slipped_exit_quantity']
 
-            exit_link_ids_list = ids_and_quantity_dict['exit_order_link_ids']
-            
-            total_entry_quantity = ids_and_quantity_dict['total_entry_quantity']
-            total_exit_quantity = ids_and_quantity_dict['total_exit_quantity']
-            slipped_orders_quantity = ids_and_quantity_dict['slipped_orders_quantity']
+        total_pos_size = self.grids_dict[self.active_grid_pos]['total_pos_size']
 
-            total_orders_quantity = total_entry_quantity + total_exit_quantity + slipped_orders_quantity
-            #TODO: Double check slipped quantity accuracty towards partial fills
-            slipped_total_quantity = position_trade_quantity - total_orders_quantity
-            grid_pos_size = total_exit_quantity + slipped_total_quantity
-            slipped_exit_quantity = grid_pos_size - total_exit_quantity
+        # total_orders_quantity = total_entry_quantity + total_exit_quantity + slipped_entry_quantity + slipped_exit_quantity
 
-            print('\n!!! TEST !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-            print(f'total_exit_quantity: {total_exit_quantity}')
-            print(f'total_entry_qauntity: {total_entry_quantity}')
-            print(f'total_orders_quantity: {total_orders_quantity}')
-            print(f'slipped_exit_quantity: {slipped_exit_quantity}')
-            print(f'grid_pos_size: {grid_pos_size}\n')
+        #TODO: Double check slipped quantity accuracty towards partial fills
+        # slipped_total_quantity = total_pos_size - total_orders_quantity
+        grid_pos_size = total_exit_quantity
+        slipped_exit_quantity = total_pos_size - total_entry_quantity - total_exit_quantity
+
+        print('\n!!! TEST !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+        print(f'total_pos_size: {total_pos_size}')
+        print(f'total_exit_quantity: {total_exit_quantity}')
+        print(f'total_entry_quantity: {total_entry_quantity}')
+        # print(f'total_orders_quantity: {total_orders_quantity}')
+        print(f'slipped_exit_quantity: {slipped_exit_quantity}')
+        print(f'grid_pos_size: {grid_pos_size}\n')
 
         self.grids_dict[self.active_grid_pos]['pos_size'] = grid_pos_size
         self.db.replace_grid_row_value(self.active_grid_pos, 'pos_size', grid_pos_size)
         self.db.replace_grid_row_value(self.active_grid_pos, 'slipped_exit_qty', slipped_exit_quantity)
-        self.db.replace_grid_row_value(self.active_grid_pos, 'slipped_ttl_qty', slipped_total_quantity)
+        # self.db.replace_grid_row_value(self.active_grid_pos, 'slipped_ttl_qty', slipped_total_quantity)
 
-        if (grid_pos_size > 0):
+        if (grid_pos_size > 0) and (slipped_exit_quantity > 0):
             # Handle checking active position, updating entry price
-            
+            print('in handle_initial_entry_exit_orders, grid_pos_size > 0')
             first_position_exit_order = self.grids_dict[self.active_grid_pos]['active'][1]
 
-            if (slipped_exit_quantity > 0) and (first_position_exit_order != None):
+            if (first_position_exit_order != None):
 
                 print('adding slipped quantity to first pos exit order: ')
-
-                print(f'\ntotal_exit_quanity: {total_exit_quantity}')
-                print(f'slipped_exit_quantity: {slipped_exit_quantity}\n5')
-
-                print('!!! TEST !!!!!!!!!!!!')
-                print(f'active_grid_pos: {self.active_grid_pos}')
-                print(pprint.pprint(self.grids_dict))
 
                 first_position_exit_order_link_id = first_position_exit_order['order_link_id']
                 first_position_exit_quantity = first_position_exit_order['input_quantity']
@@ -528,6 +517,20 @@ class Strategy_DCA:
 
             grid_range_price = calc().calc_percent_difference(self.entry_side, 'entry', main_pos_entry, grid_percent_range)
             self.db.replace_grid_row_value(self.active_grid_pos, 'grid_range_price', grid_range_price)
+
+            # calculated total pos size
+            grid_orders_list = dca_logic.get_orders_in_grid(self.active_grid_pos, self.api.get_orders())
+            slipped_orders_list = self.grids_dict[self.active_grid_pos]['slipped']
+            ids_and_quantity_dict = dca_logic.get_total_quantity_and_ids_dict(grid_orders_list, slipped_orders_list, self.entry_side)
+
+            total_entry_quantity = ids_and_quantity_dict['total_entry_quantity']
+            total_exit_quantity = ids_and_quantity_dict['total_exit_quantity']
+            slipped_entry_quantity = ids_and_quantity_dict['slipped_entry_quantity']
+            slipped_exit_quantity = ids_and_quantity_dict['slipped_exit_quantity']
+            total_pos_size = total_entry_quantity + total_exit_quantity + slipped_entry_quantity + slipped_exit_quantity
+
+            self.grids_dict[self.active_grid_pos]['total_pos_size'] = total_pos_size
+            self.db.replace_grid_row_value(self.active_grid_pos, 'ttl_pos_size', total_pos_size)
 
 
     async def determine_grid_and_trend(self, active_grid_pos: int, grid_range_price: float):

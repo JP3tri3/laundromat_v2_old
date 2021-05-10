@@ -12,6 +12,7 @@ def initialize_grid(size, grid_range_price, grid_pos_size):
 
     grid_dict['range_price'] = grid_range_price
     grid_dict['pos_size'] = grid_pos_size
+    grid_dict['total_pos_size'] = 0
     grid_dict['pos_price'] = 0
     grid_dict['active'] = initialize_orders_list(size)
     grid_dict['cancelled'] = []
@@ -130,6 +131,8 @@ def get_grid_orders_dict(grid_pos: int, entry_side: str, order_list: list):
 
     return order_list_kv
 
+
+
 def get_total_quantity_and_ids_dict(grid_orders_list: list, slipped_orders_list: list, 
                                         entry_side: str):
 
@@ -142,28 +145,35 @@ def get_total_quantity_and_ids_dict(grid_orders_list: list, slipped_orders_list:
 
     order_dict = {}
 
-    slipped_orders_quantity = 0
+    slipped_entry_quantity = 0
+    slipped_exit_quantity = 0
     for order in slipped_orders_list:
+        side = order['side']
         quantity = order['input_quantity']
-        slipped_orders_quantity += quantity
+        if (side == entry_side):
+            slipped_entry_quantity += quantity
+        else:
+            slipped_exit_quantity += quantity
 
     for order in grid_orders_list:
         side = order['side']
+        quantity = order['qty']
         if (side == entry_side):
-            total_entry_quantity += order['qty']
+            total_entry_quantity += quantity
         else:
             exit_order_link_ids.append(order['order_link_id'])
-            total_exit_quantity += order['qty']
+            total_exit_quantity += quantity
 
     order_dict['exit_order_link_ids'] = exit_order_link_ids
     order_dict['total_exit_quantity'] = total_exit_quantity
     order_dict['total_entry_quantity'] = total_entry_quantity
-    order_dict['slipped_orders_quantity'] = slipped_orders_quantity
+    order_dict['slipped_entry_quantity'] = slipped_entry_quantity
+    order_dict['slipped_exit_quantity'] = slipped_exit_quantity
 
     return order_dict
 
 def get_updated_order_info(order, profit_percent_1: float, profit_percent_2: float):
-        
+    try:
         order = order[0]
 
         order_link_id = order['order_link_id']
@@ -194,8 +204,11 @@ def get_updated_order_info(order, profit_percent_1: float, profit_percent_2: flo
                             'order_link_id' : order_link_id,
                             'leaves_qty' : order['leaves_qty']
                             })
-
         return updated_order
+
+    except Exception as e:
+        print("an exception occured - {}".format(e))
+
 
 
 # UNUSED: get list differences
