@@ -133,12 +133,12 @@ class DCA_DB:
     def dcamp_create_new_grids_table(self, table_name: str):
         try:
             print(f'creating new {table_name} orders table')
-            self.mycursor.execute(f"CREATE TABLE {table_name} (grid_pos INT UNSIGNED, grid_range_price FLOAT UNSIGNED, pos_size INT UNSIGNED, ttl_pos_size INT UNSIGNED, pos_price FLOAT UNSIGNED, slipped_ttl_qty FLOAT UNSIGNED, slipped_exit_qty FLOAT UNSIGNED, time VARCHAR(50))")
+            self.mycursor.execute(f"CREATE TABLE {table_name} (grid_pos INT UNSIGNED, grid_range_price FLOAT UNSIGNED, pos_size INT UNSIGNED, ttl_pos_size INT UNSIGNED, pos_price FLOAT UNSIGNED, slipped_exit_qty FLOAT UNSIGNED, time VARCHAR(50))")
 
             time = str(self.time_stamp())
             
-            query = (f"INSERT INTO {table_name} () VALUES (%s, %s, %s, %s, %s, %s, %s, %s)")
-            vals = (0, 0.0, 0, 0, 0.0, 0.0, 0.0, time)
+            query = (f"INSERT INTO {table_name} () VALUES (%s, %s, %s, %s, %s, %s, %s)")
+            vals = (0, 0.0, 0, 0, 0.0, 0.0, time)
 
             print(query)
             self.mycursor.execute(query, vals)
@@ -152,8 +152,8 @@ class DCA_DB:
         try:
             print(f'dcamp_create_new_grid_row {grid_pos}')
             time = str(self.time_stamp())
-            query = (f"INSERT INTO {self.grids_table_name} () VALUES (%s, %s, %s, %s, %s, %s, %s, %s)")
-            vals = (grid_pos, 0.0, 0, 0, 0.0, 0.0, 0.0, time)
+            query = (f"INSERT INTO {self.grids_table_name} () VALUES (%s, %s, %s, %s, %s, %s, %s)")
+            vals = (grid_pos, 0.0, 0, 0, 0.0, 0.0, time)
             print(query)
             self.mycursor.execute(query, vals)
             self.db.commit()
