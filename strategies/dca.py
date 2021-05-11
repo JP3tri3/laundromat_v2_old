@@ -8,6 +8,10 @@ from strategies import dca_logic
 import asyncio
 import pprint
 
+
+# TODO LIST:
+# fixing databasing new orders
+
 class Strategy_DCA:
 
     def __init__(self, api_key, api_secret, trade_id, strat_id, symbol, symbol_pair, key_input, \
@@ -497,6 +501,7 @@ class Strategy_DCA:
                 grid_pos_size = grid['pos_size']
                 init_existing_grid = False
 
+
             # TODO: Testing below grid price:
             last_price = self.api.last_price()
             if last_price < grid_range_price:
@@ -507,7 +512,7 @@ class Strategy_DCA:
 
             await asyncio.sleep(0)
             # if filled orders, process:
-            await self.update_secondary_orders(total_entry_exit_orders, profit_percent_1, profit_percent_2)
+            await self.update_secondary_orders(total_entry_exit_orders)
 
             await self.handle_initial_entry_exit_orders(profit_percent_1, profit_percent_2, grid_percent_range, main_pos_input_quantity, 
                                                             total_entry_exit_orders, total_exit_orders, total_entry_orders, 
@@ -735,9 +740,10 @@ class Strategy_DCA:
              
 
     #TODO: Address blank link order ID when manually closing order
-    async def update_secondary_orders(self, total_entry_exit_orders, profit_percent_1, profit_percent_2):
+    async def update_secondary_orders(self, total_entry_exit_orders):
         global filled_orders_list
             
+        print('in update secondary orders?')
         while (len(self.filled_orders_list) > 0):
 
             closed_order = self.filled_orders_list[0]
@@ -748,16 +754,16 @@ class Strategy_DCA:
             print(f'total_entry_exit_orders: {total_entry_exit_orders}')
             print('processing waiting available order: \n')
 
-            grid_pos = closed_order['grid_pos']
+            # grid_pos = closed_order['grid_pos']
             order_pos = closed_order['order_pos']
             input_quantity = closed_order['input_quantity']
             profit_percent = closed_order['profit_percent']
             order_status = closed_order['order_status']
             price = closed_order['price']
             side = closed_order['side']
-            link_id = closed_order['order_link_id']
+            # link_id = closed_order['order_link_id']
             link_name = closed_order['link_name']
-            leaves_qty = closed_order['leaves_qty']
+            # leaves_qty = closed_order['leaves_qty']
             new_link_id = dca_logic.create_link_id(link_name, self.active_grid_pos, order_pos)
 
 
