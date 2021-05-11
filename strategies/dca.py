@@ -37,7 +37,6 @@ class Strategy_DCA:
         self.api.set_leverage(self.leverage)
         
         self.filled_orders_list = []
-        
         self.grids_dict = {}
 
         # TODO: Create checks for if active_grid_pos in link id isn't accurate
@@ -94,8 +93,9 @@ class Strategy_DCA:
         # starting tasks
 
             # initialize from saved state:
-            self.initialized_saved_state(total_entry_exit_orders)
+            self.initialized_saved_state(total_entry_exit_orders, profit_percent_1, profit_percent_2)
 
+            # start main tasks
             task_ping_timer = asyncio.create_task(self.ws.ping(0.5, 15))
             task_collect_orders = asyncio.create_task(self.collect_orders(total_entry_exit_orders, profit_percent_1, profit_percent_2))
             task_start_dca_multi_position = asyncio.create_task(self.dca_multi_position(main_pos_percent_of_total_quantity, 
@@ -128,7 +128,6 @@ class Strategy_DCA:
                         'order_status': 'Cancelled',
                         'price': 58571.0,
                         'profit_percent': 0.0004,
-                        'reduce_only': False,
                         'side': 'Buy'}
 
             order_2 = {'grid_pos': 1,
@@ -141,7 +140,6 @@ class Strategy_DCA:
                         'order_status': 'Cancelled',
                         'price': 58571.0,
                         'profit_percent': 0.0004,
-                        'reduce_only': False,
                         'side': 'Buy'}
 
             print(self.grids_dict[self.active_grid_pos])
@@ -217,13 +215,14 @@ class Strategy_DCA:
         # print(first_position_exit_order)
 
     # initialize from saved state:
-    async def initialized_saved_state(self, total_entry_exit_orders):
+    def initialized_saved_state(self, total_entry_exit_orders, profit_percent_1, profit_percent_2):
         global active_grid_pos
         global grids_dict
 
         print(' ... loading saved state ... ')
 
         orders_list = self.api.get_orders()
+        
         num_active_orders = len(orders_list)
         position_size = self.api.get_position_size()
         active_grid_pos = 0
@@ -241,18 +240,18 @@ class Strategy_DCA:
         else:
             print('... processing ...')
             self.grids_dict[active_grid_pos] = dca_logic.initialize_grid(total_entry_exit_orders, 0, 0, 0)
+
             for order in orders_list:
-                order_link_id = order['order_link_id']
-                updated_order = get_updated_order_info(order)
+                updated_order = dca_logic.get_updated_order_info(order, profit_percent_1, profit_percent_2)
                 grid_pos = updated_order['grid_pos']
                 order_pos = updated_order['order_pos']
                 if (grid_pos > active_grid_pos):
                     active_grid_pos = grid_pos
-                    self.grids_dict[active_grid_pos] = dca_logic.initialize_grid(total_order_size, 0, 0, 0)
+                    self.grids_dict[active_grid_pos] = dca_logic.initialize_grid(total_entry_exit_orders, 0, 0, 0)
 
                     grid_info = self.db.get_grid_row_values(active_grid_pos)
-                    grid_price_range = grid_info['range_price']
-                    self.grids_dict[active_grid_pos]['grid_price_range'] = grid_price_range
+                    grid_range_price = grid_info['grid_range_price']
+                    self.grids_dict[active_grid_pos]['range_price'] = grid_range_price
                     self.grids_dict[active_grid_pos]['pos_price'] = grid_info['pos_price']
                     self.grids_dict[active_grid_pos]['pos_size'] = grid_info['pos_size']
                     self.grids_dict[active_grid_pos]['total_pos_size'] = grid_info['ttl_pos_size']
@@ -264,6 +263,8 @@ class Strategy_DCA:
             total_previous_pos_size = self.grids_dict[active_grid_pos]['total_previous_pos_size']
             grid_pos_size = self.api.get_position_size() - total_previous_pos_size
             self.grids_dict[active_grid_pos]['pos_size'] = grid_pos_size
+
+            self.active_grid_pos = active_grid_pos
 
             if (grid_pos_size > 0):
                 print(f'grid_pos_size: {grid_pos_size}')
@@ -280,30 +281,45 @@ class Strategy_DCA:
                 else:
                     if ((self.entry_side == 'Buy') and (last_price > grid_price_range)) \
                         or ((self.entry_side == 'Sell') and (last_price < grid_price_range)):
+                        print('active_exit_orders > 0')
                     
-                    # DETERMINE Arguments:
-                            await self.create_secondary_orders(main_pos_entry, total_secondary_orders_1, secondary_orders_2, 
-                                total_entry_exit_orders, profit_percent_1, profit_percent_2, secondary_entry_1_input_quantity, 
-                                    secondary_entry_2_input_quantity)    
-
-
+                self.initialize_secondary_orders()
 
         # removes unused rows:
         self.db.dcamp_remove_unused_grid_rows(active_grid_pos)
         self.db.dcamp_remove_unused_active_orders_rows(active_grid_pos)
 
-        self.active_grid_pos = active_grid_pos
+        
 
+        
 
+    def initialize_secondary_orders(self):
+        global filled_orders_list
 
+        print('... initialize_secondary_orders ...')
 
-            # TODO: check / create / remove orders depending on position
+        active_grid_pos = self.active_grid_pos
+        for x in range(len(self.grids_dict[active_grid_pos]['active'])):
+            x += 1
+            order = self.grids_dict[active_grid_pos]['active'][x]
+            if (order == None):
+                order_id = str(active_grid_pos) + str(x)
+                order_to_process = self.db.get_active_order_row_values(order_id)
+                
+                new_order = {'grid_pos': active_grid_pos,
+                            'order_pos': x,
+                            'input_quantity': order_to_process['input_quantity'],
+                            'profit_percent': order_to_process['profit_percent'],
+                            'leaves_qty': order_to_process['leaves_qty'],
+                            'link_name': order_to_process['link_name'],
+                            'order_id': 'b06a9d22-1c9f-4767-a566-028f13648703',
+                            'order_link_id': order_to_process['link_id'],
+                            'order_status': order_to_process['status'],
+                            'price': order_to_process['price'],
+                            'side': order_to_process['side']}
 
-
-
-
-            # TODO: Address leftover open orders:
-
+                self.filled_orders_list.append(new_order)
+        
 
     # collect orders via ws
     async def collect_orders(self, total_entry_exit_orders, profit_percent_1, profit_percent_2):
@@ -316,7 +332,6 @@ class Strategy_DCA:
     # TODO: Address 'PartiallyFilled' order status
 
     # TODO: Add checks for confirming active orders
-    # store new, changed & filled orders in global lists
     async def store_new_changed_filled_orders(self, order, profit_percent_1, profit_percent_2):
         print('in store orders')
         global filled_orders_list
@@ -351,12 +366,11 @@ class Strategy_DCA:
                 #     else:
                 #         self.grids_dict[grid_pos]['pos_size'] = pos_size - quantity
 
-                if (order_status == 'Filled'):
+                if (order_status == 'Filled') or (order_status == 'PartiallyFilled'):
                     print('\nadding closed order to filled_orders_list')
                     self.filled_orders_list.append(order)
                     self.db.dcamp_create_new_order_row(order)
                     print(f'filled_orders_list len: {len(self.filled_orders_list)}\n')
-                    quantity = order['input_quantity']
 
                 elif (order_status == 'New'):
                     print('\nadding new or changed order to order list\n')
@@ -370,8 +384,8 @@ class Strategy_DCA:
                     if (cancelled_order_id in self.grids_dict[grid_pos]['cancelled']) == False:
                         print('confirmed slipped order, moving cancelled order to slipped list')
                         self.grids_dict[grid_pos]['slipped'].append(order)
-                        self.db.dcamp_create_new_order_row(order)
-                        
+                        self.db.dcamp_replace_slipped_order(order)
+
                     else:
                         print('confirmed cancelled order, removing order id from cancelled orders list')
                         self.grids_dict[grid_pos]['cancelled'].remove(cancelled_order_id)
@@ -386,10 +400,13 @@ class Strategy_DCA:
                 last_price = self.api.last_price()
                 print(f'side: {side}, price: {price}, last_price: {last_price}')
 
-                if ((side == 'Buy') and (price < last_price)) or ((side == 'Sell') and (price > last_price)):
+                if ((side == 'Buy') and (price < last_price)) \
+                    or ((side == 'Sell') and (price > last_price)):
+
                     print('adding slipped_order to filled_orders_list')
                     self.filled_orders_list.append(order)
                     self.grids_dict[grid_pos]['slipped'].remove(order)
+
                     self.db.dcamp_replace_slipped_order_status(order)
                 else:
                     print(f'order still slipped: ')
@@ -456,13 +473,17 @@ class Strategy_DCA:
             if (new_trend):
                 print('init new grid: ')
                 # initialize new grid:
-                total_previous_pos_size = self.grids_dict[self.active_grid_pos]['total_pos_size']
-                self.active_grid_pos += 1
-                self.grids_dict[self.active_grid_pos] = dca_logic.initialize_grid(total_entry_exit_orders, 0, 0, total_previous_pos_size)
-                self.db.dcamp_create_new_grid_row(self.active_grid_pos)
 
-                # initialize db active orders table rows
-                self.db.initialize_active_orders_table(self.active_grid_pos, total_entry_exit_orders)
+                #TODO: Only use with new tables for testing:
+                if (self.api.get_position_size() == 0):
+                    total_previous_pos_size = self.grids_dict[self.active_grid_pos]['total_pos_size']
+                    self.active_grid_pos += 1
+                    self.grids_dict[self.active_grid_pos] = dca_logic.initialize_grid(total_entry_exit_orders, 0, 0, total_previous_pos_size)
+                    self.db.dcamp_create_new_grid_row(self.active_grid_pos)
+
+                    # initialize db active orders table rows
+                    self.db.initialize_active_orders_table(self.active_grid_pos, total_entry_exit_orders)
+                self.db.initialize_slipped_orders_table(self.active_grid_pos, total_entry_exit_orders)
 
                 #TODO: Testing, remove:
                 new_trend = False
@@ -475,6 +496,14 @@ class Strategy_DCA:
                 grid_range_price = grid['range_price']
                 grid_pos_size = grid['pos_size']
                 init_existing_grid = False
+
+            # TODO: Testing below grid price:
+            last_price = self.api.last_price()
+            if last_price < grid_range_price:
+                print('\nrange_price check: ')
+                print(f'range_price: {grid_range_price}')
+                print(f'last_price: {last_price}\n')
+                await asyncio.sleep(3)
 
             await asyncio.sleep(0)
             # if filled orders, process:
@@ -491,67 +520,47 @@ class Strategy_DCA:
                                                      total_secondary_orders_1, secondary_orders_2, secondary_entry_1_input_quantity, 
                                                             secondary_entry_2_input_quantity):
         global grids_dict
+        global filled_orders_list
 
         # handle pos size
         grid_orders_list = dca_logic.get_orders_in_grid(self.active_grid_pos, self.api.get_orders())
         ids_and_quantity_dict = dca_logic.get_total_quantity_and_ids_dict(grid_orders_list, self.entry_side)
 
-        exit_link_ids_list = ids_and_quantity_dict['exit_order_link_ids']
         total_exit_quantity = ids_and_quantity_dict['total_exit_quantity']
-        total_entry_quantity = ids_and_quantity_dict['total_entry_quantity']
-
+                
+        
+        # update grid_pos_size in dict & db
         total_pos_size = self.api.get_position_size()
-        self.grids_dict[self.active_grid_pos]['total_pos_size'] = total_pos_size
+        pre_total_pos_size = self.grids_dict[self.active_grid_pos]['total_pos_size']
+
+        if total_pos_size != pre_total_pos_size:
+            self.grids_dict[self.active_grid_pos]['total_pos_size'] = total_pos_size
+            self.db.replace_grid_row_value(self.active_grid_pos, 'ttl_pos_size', total_pos_size)
+
         total_previous_pos_size = self.grids_dict[self.active_grid_pos]['total_previous_pos_size']
         grid_pos_size = total_pos_size - total_previous_pos_size
 
-        previous_grid_slipped_quantity = self.grids_dict['initial_slipped']
-        slipped_exit_quantity = (grid_pos_size - total_exit_quantity) + previous_grid_slipped_quantity
-
-        # update total_pos_size in dict & db if grid total_entry_quantity = 0
-        if (total_entry_quantity == 0):
-            total_pos_size_check = self.grids_dict[self.active_grid_pos]['total_pos_size']
-            if (total_pos_size_check != total_pos_size):
-                self.grids_dict[self.active_grid_pos]['total_pos_size'] = total_pos_size
-                self.db.replace_grid_row_value(self.active_grid_pos, 'ttl_pos_size', total_pos_size)
+        pre_grid_pos_size = self.grids_dict[self.active_grid_pos]['pos_size']
         
-        # update grid_pos_size in dict & db
-        previous_grid_pos_size = self.grids_dict[self.active_grid_pos]['pos_size']
-        if (grid_pos_size != previous_grid_pos_size):
+        if (grid_pos_size != pre_grid_pos_size):
             self.grids_dict[self.active_grid_pos]['pos_size'] = grid_pos_size
             self.db.replace_grid_row_value(self.active_grid_pos, 'pos_size', grid_pos_size)
-        
-        # handle slipped exit quantity
-        if (grid_pos_size > 0) and (slipped_exit_quantity > 0):
-            # Handle checking active position, updating entry price
-            print('in handle_initial_entry_exit_orders, grid_pos_size > 0')
-            first_position_exit_order = self.grids_dict[self.active_grid_pos]['active'][1]
-            self.db.replace_grid_row_value(self.active_grid_pos, 'slipped_exit_qty', slipped_exit_quantity)
 
-            if (first_position_exit_order != None):
-
-                print('adding slipped quantity to first pos exit order: ')
-
-                first_position_exit_order_link_id = first_position_exit_order['order_link_id']
-                first_position_exit_quantity = first_position_exit_order['input_quantity']
-
-                if (first_position_exit_order_link_id in exit_link_ids_list) == True:
-                    print(f'found first position exit_order: adding {slipped_exit_quantity}')
-                    current_first_position_exit_quantity = self.grids_dict[self.active_grid_pos]['active'][1]['input_quantity']
-                    new_first_position_exit_quantity_size = current_first_position_exit_quantity + slipped_exit_quantity
-                    self.api.change_order_size(new_first_position_exit_quantity_size, first_position_exit_order_link_id)
-                else:
-                    print(f'did not find position exit order, adding slipped exit quantity to next position: ')
-                    grid_pos_size = 0
-
-        elif (grid_pos_size == 0):
+        if (total_exit_quantity == 0):
             print('\nclearing all order lists: \n')
             total_previous_pos_size = self.grids_dict[self.active_grid_pos - 1]['total_pos_size']
             self.grids_dict[self.active_grid_pos] = dca_logic.initialize_grid(total_entry_exit_orders, 0, 0, total_previous_pos_size)
+            self.filled_orders_list = []
+
             
-            # create initial main_pos entry pos & exit orders, add previous pos slipped quantity:
-            main_pos_input_quantity += slipped_exit_quantity
-            await self.create_main_pos_entry_exit('Market', self.entry_side, main_pos_input_quantity, 
+            previous_grid_slipped_quantity = self.grids_dict['initial_slipped']
+
+            slipped_quantity = grid_pos_size + previous_grid_slipped_quantity
+            input_quantity = main_pos_input_quantity - slipped_quantity
+
+            #TODO: Fix Input Quantity to handle leftover quantity from initializing without 0 grid_pos_size
+
+            await self.create_main_pos_entry_exit('Market', self.entry_side, input_quantity, slipped_quantity,
                         profit_percent_2, total_exit_orders)
             await asyncio.sleep(0)
 
@@ -559,7 +568,7 @@ class Strategy_DCA:
 
             # calculate and create open orders below Main pos:
             await self.create_secondary_orders(main_pos_entry, total_secondary_orders_1, secondary_orders_2, 
-                        total_entry_exit_orders, profit_percent_1, profit_percent_2, secondary_entry_1_input_quantity, 
+                        total_entry_orders, profit_percent_1, profit_percent_2, secondary_entry_1_input_quantity, 
                             secondary_entry_2_input_quantity)
 
             grid_range_price = calc().calc_percent_difference(self.entry_side, 'entry', main_pos_entry, grid_percent_range)
@@ -597,35 +606,42 @@ class Strategy_DCA:
         print('determining new trend')
         return new_trend
 
-    async def create_main_pos_entry_exit(self, order_type, entry_side, main_pos_input_quantity, profit_percent_2, total_exit_orders):
+    async def create_main_pos_entry_exit(self, order_type, entry_side, input_quantity, slipped_quantity, profit_percent_2, total_exit_orders):
         global grids_dict
         entry_link_id = 'open'
         exit_link_id = 'main'
 
-        if (order_type == 'Market'):
-            link_id = dca_logic.create_link_id(entry_link_id, self.active_grid_pos, 1)
-            print('\ncreating Market main_pos entry: ')
-            price = self.api.last_price()
-            main_pos_order_link_id = self.api.place_order(price, 'Market', self.entry_side, main_pos_input_quantity, 0, False, link_id)
-            exec_price = self.api.get_last_trade_price_record(main_pos_order_link_id)
-            self.db.replace_grid_row_value(self.active_grid_pos, 'pos_price', exec_price)
-            self.grids_dict[self.active_grid_pos]['pos_price'] = exec_price
+        if (input_quantity > 0):
+            if (order_type == 'Market'):
+                link_id = dca_logic.create_link_id(entry_link_id, self.active_grid_pos, 1)
+                print('\ncreating Market main_pos entry: ')
+                price = self.api.last_price()
+                main_pos_order_link_id = self.api.place_order(price, 'Market', self.entry_side, input_quantity, 0, False, link_id)
+                main_pos_exec_price = self.api.get_last_trade_price_record(main_pos_order_link_id)
+                self.db.replace_grid_row_value(self.active_grid_pos, 'pos_price', main_pos_exec_price)
+                self.grids_dict[self.active_grid_pos]['pos_price'] = main_pos_exec_price
 
-            await asyncio.sleep(0.5)
+                await asyncio.sleep(0.5)
 
-            print('\ncreating main_pos exit: ')
+                print('\ncreating main_pos exit: ')
+            else:
+                # force initial Main Pos limit close order
+                print('\nforcing Limit main_pos entry: ')
+                #TODO: Capture entry price for chasing limit in ws orders
+                limit_price_difference = self.limit_price_difference
+                await self.api.force_limit_order(self.entry_side, input_quantity, limit_price_difference, 0, False, entry_link_id)
         else:
-            # force initial Main Pos limit close order
-            print('\nforcing Limit main_pos entry: ')
-            #TODO: Capture entry price for chasing limit in ws orders
-            limit_price_difference = self.limit_price_difference
-            main_pos_order_link_id = await self.api.force_limit_order(self.entry_side, main_pos_input_quantity, limit_price_difference, 0, False, entry_link_id)
+            input_quantity = 0
+        
+        exit_input_quantity = input_quantity + slipped_quantity
+
+        main_pos_price = self.grids_dict[self.active_grid_pos]['pos_price']
 
         print('\ncreating main pos exits: ')
-        main_pos_entry = round(self.api.get_active_position_entry_price(), 0)                
+        main_pos_entry = round(main_pos_price, 0)                
         total_num_orders = total_exit_orders
-        input_quantity = main_pos_input_quantity
-        input_quantity_2 = round(main_pos_input_quantity / total_num_orders, 0)
+        input_quantity = exit_input_quantity
+        input_quantity_2 = round(exit_input_quantity / total_num_orders, 0)
         start_price = main_pos_entry
         num_order = total_num_orders
 
@@ -642,12 +658,10 @@ class Strategy_DCA:
             await asyncio.sleep(0)
             num_order -= 1
             input_quantity = input_quantity_2
-
-        return main_pos_order_link_id
                     
 
     async def create_secondary_orders(self, initial_price, total_secondary_orders_1, \
-        secondary_orders_2, total_entry_exit_orders, profit_percent_1, profit_percent_2, \
+        secondary_orders_2, total_entry_orders, profit_percent_1, profit_percent_2, \
             secondary_entry_1_input_quantity, secondary_entry_2_input_quantity):
 
         global grids_dict
@@ -659,24 +673,12 @@ class Strategy_DCA:
         active_entry_orders_list = orders_dict[self.entry_side]
         active_entry_orders_len = len(active_entry_orders_list)
 
-        active_exit_orders_list = orders_dict[self.exit_side]
-        active_exit_orders_len = len(active_exit_orders_list)
-
         # determine active & available entry orders
-        # available_entry_orders = total_entry_orders - active_entry_orders_len
-        # orders_to_cancel = active_entry_orders_len - total_entry_orders
-
-        total_entry_orders = total_entry_exit_orders - active_exit_orders_len
         available_entry_orders = total_entry_orders - active_entry_orders_len
         orders_to_cancel = active_entry_orders_len - total_entry_orders
 
         secondary_1_entry_price = initial_price
         secondary_2_entry_price = initial_price
-
-        get_total_quantity_list = dca_logic.get_total_quantity_and_ids_dict(active_exit_orders_list, self.entry_side)
-        total_exit_quantity = get_total_quantity_list['total_exit_quantity']
-
-        grid_pos_size = self.grids_dict[self.active_grid_pos]['pos_size']
 
         print(f'\ncurrent active entry orders: {len(active_entry_orders_list)}')
         print(f'\navailable_entry_orders {available_entry_orders}')
@@ -694,6 +696,7 @@ class Strategy_DCA:
             active_entry_orders_list.remove(order)
 
         active_orders_index = 0
+        side = self.entry_side
         for x in range(total_entry_orders):
             x += 1
 
@@ -702,36 +705,22 @@ class Strategy_DCA:
                 input_quantity = secondary_entry_1_input_quantity
                 link_name = 'pp_1'
                 profit_percent = profit_percent_1
-                entry_price = calc().calc_percent_difference(self.entry_side, 'entry', secondary_1_entry_price, profit_percent)
+                entry_price = calc().calc_percent_difference(side, 'entry', secondary_1_entry_price, profit_percent)
                 secondary_1_entry_price = entry_price
                 secondary_2_entry_price = entry_price
             else: 
                 input_quantity = secondary_entry_2_input_quantity
                 link_name = 'pp_2'
                 profit_percent = profit_percent_2
-                entry_price = calc().calc_percent_difference(self.entry_side, 'entry', secondary_2_entry_price, profit_percent)
+                entry_price = calc().calc_percent_difference(side, 'entry', secondary_2_entry_price, profit_percent)
                 secondary_2_entry_price = entry_price
-
-            # determine entry or exit order:
-            last_price = self.api.last_price()
-
-            if (total_exit_quantity < grid_pos_size):
-                if ((self.entry_side == 'Buy') and (last_price < entry_price)) \
-                    or ((self.entry_side == 'Sell') and (last_price > entry_price)):
-                    exit_price = calc().calc_percent_difference(self.entry_side, 'entry', entry_price, profit_percent)
-                    price = exit_price
-                    side = self.exit_side
-                    total_exit_quantity += input_quantity
-            else:
-                price = entry_price
-                side = self.entry_side
 
             if (x <= available_entry_orders):
                 print(f'\navailable_entry_orders: {available_entry_orders}\n')
                 print(f'in fill available entry orders: x = {x}')
                 link_id_index += 1
                 link_id = dca_logic.create_link_id(link_name, self.active_grid_pos, link_id_index)
-                self.api.place_order(price, 'Limit', side, input_quantity, 0, False, link_id)
+                self.api.place_order(entry_price, 'Limit', side, input_quantity, 0, False, link_id)
                 await asyncio.sleep(0)
 
             else:
@@ -739,7 +728,7 @@ class Strategy_DCA:
                 print(f'active_orders_index: {active_orders_index}')
                 print(f'in update existing entry orders: x = {x}')
                 order_id = orders_dict[side][active_orders_index]['order_id']
-                self.api.change_order_price_size(price, input_quantity, order_id)
+                self.api.change_order_price_size(entry_price, input_quantity, order_id)
                 await asyncio.sleep(0)
                 active_orders_index +=1
 
@@ -748,9 +737,6 @@ class Strategy_DCA:
     #TODO: Address blank link order ID when manually closing order
     async def update_secondary_orders(self, total_entry_exit_orders, profit_percent_1, profit_percent_2):
         global filled_orders_list
-
-        # try:
-        order_flag = True
             
         while (len(self.filled_orders_list) > 0):
 
@@ -774,51 +760,69 @@ class Strategy_DCA:
             leaves_qty = closed_order['leaves_qty']
             new_link_id = dca_logic.create_link_id(link_name, self.active_grid_pos, order_pos)
 
-            if (leaves_qty == 0):
-                if (order_pos == 1):
-                    print('\n order_pos = 1 ... create trade record break:')
-                    await self.create_trade_record(closed_order)
 
-                elif (current_num_orders == total_entry_exit_orders):
-                    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-                    print('Too many orders, Skipping: ')
-                    print(f'current_num_orders: {current_num_orders}\n')
-                    print('')
+            # if (leaves_qty == 0):
+            if (order_pos == 1):
+                print('\n order_pos = 1 ... create trade record break:')
+                await self.create_trade_record(closed_order)
+
+            elif (current_num_orders == total_entry_exit_orders):
+                print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                print('Too many orders, Skipping: ')
+                print(f'current_num_orders: {current_num_orders}\n')
+                print('')
+
+            elif (order_status == 'PartiallyFilled'):
+                print(f'processing partially filled, adding quantity to side: {side}')
+                orders_list = self.api.get_orders()
+                orders_dict = dca_logic.get_grid_orders_dict(self.active_grid_pos, self.entry_side, orders_list)
+                if (side == self.entry_side):
+                    order_to_update = orders_dict[self.exit_side][0]
 
                 else:
-                    if (order_status == 'Cancelled'):
-                        reduce_only = closed_order['reduce_only']
+                    order_to_update = orders_dict[self.entry_side][0]
 
-                    elif (side == self.entry_side):
-                        #create new exit order upon entry close
-                        print("\ncreating new exit order")
-                        side = self.exit_side
-                        price = calc().calc_percent_difference(self.entry_side, 'exit', price, profit_percent)
+                current_input_size = order_to_update['qty']
+                new_input_quantity = current_input_size + input_quantity
+                price = order_to_update['price']
+                order_id = order_to_update['order_id']
+                self.api.change_order_price_size(price, new_input_quantity, order_id)
+
+            else:
+                if (order_status == 'Cancelled'):
+                    if (side == self.entry_side):
+                        reduce_only = False
+                    else:
                         reduce_only = True
 
-                    elif (side == self.exit_side):
-                        print("\nCreating Trade Record")
-                        await self.create_trade_record(closed_order)            
-                        #create new entry order upon exit close
-                        print('creating new entry order')
-                        side = self.entry_side
-                        price = calc().calc_percent_difference(self.entry_side, 'entry', price, profit_percent)
-                        reduce_only = False
+                elif (side == self.entry_side):
+                    #create new exit order upon entry close
+                    print("\ncreating new exit order")
+                    side = self.exit_side
+                    price = calc().calc_percent_difference(self.entry_side, 'exit', price, profit_percent)
+                    reduce_only = True
 
-                    self.api.place_order(price, 'Limit', side, input_quantity, 0, reduce_only, new_link_id)
-                    await asyncio.sleep(0)
-            else:
-                print(f'leaves_qty still open: {leaves_qty}')
+                elif (side == self.exit_side):
+                    print("\nCreating Trade Record")
+                    await self.create_trade_record(closed_order)            
+                    #create new entry order upon exit close
+                    print('creating new entry order')
+                    side = self.entry_side
+                    price = calc().calc_percent_difference(self.entry_side, 'entry', price, profit_percent)
+                    reduce_only = False
+                else:
+                    print('something is wrong in update_secondary_orders')
+                    print(pprint.pprint(closed_order))
+                    sys.exit()
+
+                self.api.place_order(price, 'Limit', side, input_quantity, 0, reduce_only, new_link_id)
+                await asyncio.sleep(0)
 
             await asyncio.sleep(0)
             
             print(f'num filled_orders: {len(self.filled_orders_list)}')
             if (len(self.filled_orders_list) == 0):
                 print('\n emptied orders list in update secondary orders\n')
-
-
-        # except Exception as e:
-        #     print("an exception occured - {}".format(e))
 
     # async def get_last_price(self):
     #     last_price = self.api.last_price()

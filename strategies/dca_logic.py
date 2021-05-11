@@ -14,6 +14,7 @@ def initialize_grid(size, grid_range_price, grid_pos_size, total_previous_pos_si
     grid_dict['pos_size'] = grid_pos_size
     grid_dict['total_pos_size'] = 0
     grid_dict['total_previous_pos_size'] = total_previous_pos_size
+    grid_dict['slipped_qty'] = 0
     grid_dict['pos_price'] = 0
     grid_dict['active'] = initialize_orders_list(size)
     grid_dict['cancelled'] = []
@@ -162,7 +163,8 @@ def get_total_quantity_and_ids_dict(grid_orders_list: list, entry_side: str):
 
 def get_updated_order_info(order, profit_percent_1: float, profit_percent_2: float):
     try:
-        order = order[0]
+        if (type(order) != dict):
+            order = order[0]
 
         order_link_id = order['order_link_id']
         extracted_link_id = extract_link_id(order_link_id)
@@ -187,16 +189,18 @@ def get_updated_order_info(order, profit_percent_1: float, profit_percent_2: flo
                             'input_quantity' : order['qty'],
                             'price' : float(order['price']),
                             'profit_percent' : profit_percent,
-                            'reduce_only' : order['reduce_only'], 
                             'order_id' : order['order_id'],
                             'order_link_id' : order_link_id,
                             'leaves_qty' : order['leaves_qty']
                             })
+
         return updated_order
 
     except Exception as e:
         print("an exception occured - {}".format(e))
-
+        
+        print('exciting on dca_logic.get_updated_order_info exception: ')
+        sys.exit()
 
 
 # UNUSED: get list differences
