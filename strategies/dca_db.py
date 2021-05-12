@@ -223,6 +223,20 @@ class DCA_DB:
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
 
+    def check_grid_row_exists(self, grid_pos):
+        try:
+            table_name = self.grids_table_name
+            query = (f"SELECT EXISTS (SELECT * from {table_name} WHERE grid_pos={grid_pos})")
+            self.mycursor.execute(query)
+            result_list = self.mycursor.fetchall()
+            num_rows = result_list[0][0]
+            if (num_rows == 0):
+                return False
+            else:
+                return True
+        except mysql.connector.Error as error:
+            print("Failed to update record to database: {}".format(error))
+
     def get_grid_row_values(self, grid_pos):
         
         try:
@@ -465,3 +479,4 @@ class DCA_DB:
             return result[0][0]
         except mysql.connector.Error as error:
             print("Failed to retrieve record from database: {}".format(error))
+
