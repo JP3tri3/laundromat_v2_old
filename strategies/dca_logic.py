@@ -22,6 +22,15 @@ def initialize_grid(size, grid_range_price, grid_pos_size, total_previous_pos_si
 
     return grid_dict
 
+def convert_timestamp(ts):
+    converted_timestamp = ''
+    for x in range(len(ts)):
+        char = ts[x]
+        if char.isnumeric():
+            converted_timestamp += char
+    
+    return int(converted_timestamp)
+
 def initialize_orders_list(size):
     kv_dict = {}
     for i in range(size):
@@ -44,7 +53,7 @@ def extract_link_id(link_id):
     
         kv_dict = {}
 
-        max_custom_id_length = 14
+        max_custom_id_length = 16
         name = ''
         grid_pos = ''
         order_pos = ''
@@ -191,7 +200,8 @@ def get_updated_order_info(order, profit_percent_1: float, profit_percent_2: flo
                             'profit_percent' : profit_percent,
                             'order_id' : order['order_id'],
                             'order_link_id' : order_link_id,
-                            'leaves_qty' : order['leaves_qty']
+                            'leaves_qty' : order['leaves_qty'],
+                            'timestamp' : order['timestamp']
                             })
 
         return updated_order

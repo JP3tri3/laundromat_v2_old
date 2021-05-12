@@ -1,4 +1,4 @@
-from BybitWebsocket import BybitWebsocket
+from BybitWebsocket import BybitWebsocket # type: ignore
 import asyncio
 import pprint
 
@@ -112,6 +112,7 @@ class Bybit_WS:
         
         while True:
             await asyncio.sleep(self.interval)
+            data = self.ws.get_data(f"instrument_info.100ms.{self.symbol_pair}")
             if data:
                 if 'update' in data:
                     new_data = data['update'][0]
@@ -126,6 +127,7 @@ class Bybit_WS:
         
         while True:
             await asyncio.sleep(self.interval)
+            data = self.ws.get_data(f"instrument_info.100ms.{self.symbol_pair}")
             if data:
                 if 'update' in data:
                     new_data = data['update'][0]

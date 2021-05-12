@@ -35,22 +35,22 @@ class DCA_DB:
         print(f'\ndelete all tables: {dlt_table_t_f}')
         if (dlt_table_t_f == True):
             print('removing all tables:')
-            # self.delete_table(self.active_orders_table_name)
+            self.delete_table(self.active_orders_table_name)
             self.delete_table(self.slipped_orders_table_name)
             self.delete_table(self.filled_orders_table_name)
             self.delete_table(self.trade_data_table_name)
-            # self.delete_table(self.grids_table_name)
+            self.delete_table(self.grids_table_name)
         else:
             print('not removing tables')
 
         print(f'create all tables: {create_table_t_f}')
         if (create_table_t_f == True):
             print('creating all tables')
-            # self.dcamp_create_orders_table(self.active_orders_table_name)
+            self.dcamp_create_orders_table(self.active_orders_table_name)
             self.dcamp_create_orders_table(self.slipped_orders_table_name)
             self.dcamp_create_orders_table(self.filled_orders_table_name)
             self.dcamp_create_new_trade_data_table(self.trade_data_table_name, self.trade_id)
-            # self.dcamp_create_new_grids_table(self.grids_table_name)
+            self.dcamp_create_new_grids_table(self.grids_table_name)
         else:
             print('not creating new tables\n')
 
@@ -290,7 +290,7 @@ class DCA_DB:
     def dcamp_create_orders_table(self, table_name):
         try:
             print(f'creating new {table_name} orders table')
-            self.mycursor.execute(f"CREATE TABLE {table_name} (grid_pos INT UNSIGNED, trade_id VARCHAR(16), id VARCHAR(8), link_id_pos INT UNSIGNED, link_name VARCHAR(8), side VARCHAR(8), status VARCHAR(12), input_quantity INT UNSIGNED, leaves_qty INT UNSIGNED, price FLOAT UNSIGNED, profit_percent FLOAT UNSIGNED, link_id VARCHAR(50), order_id VARCHAR(50), time VARCHAR(50))")
+            self.mycursor.execute(f"CREATE TABLE {table_name} (grid_pos INT UNSIGNED, trade_id VARCHAR(16), id VARCHAR(8), link_id_pos INT UNSIGNED, link_name VARCHAR(8), side VARCHAR(8), status VARCHAR(12), input_quantity INT UNSIGNED, leaves_qty INT UNSIGNED, price FLOAT UNSIGNED, profit_percent FLOAT UNSIGNED, link_id VARCHAR(50), order_id VARCHAR(50), time VARCHAR(50), timestamp VARCHAR(50))")
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
 
@@ -318,9 +318,10 @@ class DCA_DB:
             link_id = 'empty'
             order_id = 'empty'
             time = str(self.time_stamp())
+            timestamp = 'empty'
 
-            query = (f"UPDATE {table_name} SET link_name = %s, side = %s, profit_percent = %s, status = %s, input_quantity = %s, price = %s, link_id = %s, order_id = %s, time = %s WHERE id = %s")
-            vals = (link_name, side, profit_percent, status, input_quantity, price, link_id, order_id, time, grid_id)
+            query = (f"UPDATE {table_name} SET link_name = %s, side = %s, profit_percent = %s, status = %s, input_quantity = %s, price = %s, link_id = %s, order_id = %s, time = %s, timestamp = %s WHERE id = %s")
+            vals = (link_name, side, profit_percent, status, input_quantity, price, link_id, order_id, time, timestamp, grid_id)
 
             print(query, vals)
             print('')
@@ -341,13 +342,15 @@ class DCA_DB:
             status = order['order_status']
             input_quantity = order['input_quantity']
             price = order['price']
+            leaves_qty = order['leaves_qty']
             profit_percent = order['profit_percent']
             link_id = order['order_link_id']
             order_id = order['order_id']
+            timestamp = order['timestamp']
             time = str(self.time_stamp())
 
-            query = (f"UPDATE {table_name} SET grid_pos = %s, link_id_pos = %s, link_name = %s, side = %s, profit_percent = %s, status = %s, input_quantity = %s, price = %s, link_id = %s, order_id = %s, time = %s WHERE id = %s")
-            vals = (grid_pos, link_id_pos, link_name, side, profit_percent, status, input_quantity, price, link_id, order_id, time, grid_id)
+            query = (f"UPDATE {table_name} SET grid_pos = %s, link_id_pos = %s, link_name = %s, side = %s, status = %s, input_quantity = %s, leaves_qty = %s, price = %s, profit_percent = %s, link_id = %s, order_id = %s, time = %s, timestamp = %s WHERE id = %s")
+            vals = (grid_pos, link_id_pos, link_name, side, status, input_quantity, leaves_qty, price, profit_percent, link_id, order_id, time, timestamp, grid_id)
 
             print(query, vals)
             print('')
@@ -359,9 +362,9 @@ class DCA_DB:
     def dcamp_create_new_empty_orders_row(self, table_name: str, grid_pos: int, link_id_pos: int):
         try:
             grid_id = (f'{grid_pos}{link_id_pos}')
-            query = (f"INSERT INTO {table_name} () VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)")
+            query = (f"INSERT INTO {table_name} () VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)")
             print(query)
-            self.mycursor.execute(query,(grid_pos, self.trade_id, grid_id, link_id_pos, 'empty', 'empty', 'empty', 0, 0, 0, 0, 'empty', 'empty', 'empty'))
+            self.mycursor.execute(query,(grid_pos, self.trade_id, grid_id, link_id_pos, 'empty', 'empty', 'empty', 0, 0, 0, 0, 'empty', 'empty', 'empty', 0))
             self.db.commit()
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
@@ -380,6 +383,7 @@ class DCA_DB:
             profit_percent = order['profit_percent']
             link_id = order['order_link_id']
             order_id = order['order_id']
+            timestamp = order['timestamp']
             time = str(self.time_stamp())
 
             if (status == 'Cancelled'):
@@ -387,8 +391,8 @@ class DCA_DB:
             elif (status == 'Filled') or (status == 'PartiallyFilled'):
                 table_name = self.filled_orders_table_name
 
-            query = (f"INSERT INTO {table_name} () VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)")
-            vals = (grid_pos, self.trade_id, grid_id, link_id_pos, link_name, side, status, input_quantity, leaves_qty, price, profit_percent, link_id, order_id, time)
+            query = (f"INSERT INTO {table_name} () VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)")
+            vals = (grid_pos, self.trade_id, grid_id, link_id_pos, link_name, side, status, input_quantity, leaves_qty, price, profit_percent, link_id, order_id, time, timestamp)
 
             print(query)
 
@@ -403,11 +407,10 @@ class DCA_DB:
             link_id_pos = order['order_pos']
             grid_id = (f'{grid_pos}{link_id_pos}')
             status = 'resolved'
-            link_id = order['order_link_id']
             time = str(self.time_stamp())
 
-            query = (f"UPDATE {self.slipped_orders_table_name} SET status = %s, time = %s WHERE link_id = %s")
-            vals = (status, time,link_id)
+            query = (f"UPDATE {self.slipped_orders_table_name} SET status = %s, time = %s WHERE id = %s")
+            vals = (status, time, grid_id)
 
             print(query, vals)
             print('')
