@@ -145,9 +145,6 @@ def get_grid_orders_dict(grid_pos: int, entry_side: str, order_list: list):
 
 def get_total_quantity_and_ids_dict(grid_orders_list: list, entry_side: str):
 
-    if (entry_side == 'Buy'): exit_side = 'Sell'
-    else: exit_side = 'Buy'
-
     exit_order_link_ids = []
     total_entry_quantity = 0
     total_exit_quantity = 0
