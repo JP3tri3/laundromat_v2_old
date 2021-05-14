@@ -6,7 +6,7 @@ import mysql.connector
 
 class DCA_DB:
 
-    def __init__(self, trade_id, strat_name, instance, create_table_t_f, dlt_table_t_f):
+    def __init__(self, trade_id, strat_name, instance):
         self.trade_id = trade_id
         self.active_orders_table_name = strat_name + '_active_orders_' + str(instance)
         self.slipped_orders_table_name = strat_name + '_slipped_orders_' + str(instance)
@@ -14,7 +14,8 @@ class DCA_DB:
         self.grids_table_name = strat_name + '_grids_' + str(instance)
         self.trade_data_table_name = strat_name + '_trade_data'
         self.trade_record_id = 0  
-        
+        self.strat_name = strat_name
+
         self.db = mysql.connector.connect(
             host = config.host,
             user = config.user,
@@ -25,13 +26,11 @@ class DCA_DB:
 
         self.mycursor = self.db.cursor()
 
-        self.initialize_all_tables(strat_name, dlt_table_t_f, create_table_t_f)
-
         print('... DCA_DB initialized ...')
 
 
-    def initialize_all_tables(self, strat_name: str, dlt_table_t_f: bool, create_table_t_f: bool):
-        print(f'... initializing tables for {strat_name} ...')
+    def initialize_all_tables(self, dlt_table_t_f: bool, create_table_t_f: bool):
+        print(f'... initializing tables for {self.strat_name} ...')
         print(f'\ndelete all tables: {dlt_table_t_f}')
         if (dlt_table_t_f == True):
             print('removing all tables:')
@@ -53,6 +52,32 @@ class DCA_DB:
             self.dcamp_create_new_grids_table(self.grids_table_name)
         else:
             print('not creating new tables\n')
+
+    def initialize_non_peristent_tables(self, dlt_table_t_f: bool, create_table_t_f: bool):
+        if (dlt_table_t_f == True):
+            print(f'removing persistent tables: {self.filled_orders_table_name}')
+            self.delete_table(self.filled_orders_table_name)
+
+        if (create_table_t_f == True):
+            print(f'creating persistent tables: {self.filled_orders_table_name}')
+            self.dcamp_create_orders_table(self.filled_orders_table_name)
+    
+
+    # TODO: Setup in here:
+    # def initialize_profit_logs(self, dlt_table_t_f: bool, create_table_t_f: bool):
+    #     print(f'\ndelete profit logs: {dlt_table_t_f}')
+    #         if (dlt_table_t_f == True):
+
+    # remove unused table rows: 
+    def dcamp_remove_unused_active_orders_rows(self, grid_pos: int):
+        self.dcamp_remove_unused_table_orders_rows(self.active_orders_table_name, grid_pos)
+
+    def dcamp_remove_slipped_orders_rows(self, grid_pos: int):
+        self.dcamp_remove_unused_table_orders_rows(self.slipped_orders_table_name, grid_pos)
+
+    def dcamp_remove_unused_grids_rows(self, grid_pos: int):
+        self.dcamp_remove_unused_table_orders_rows(self.grids_table_name, grid_pos)
+
 
     # initialize orders tables: 
     def initialize_active_orders_table(self, grid_pos: int, num_orders: int):
@@ -165,9 +190,9 @@ class DCA_DB:
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
 
-    def dcamp_remove_unused_grid_rows(self, grid_pos: int):
+    def dcamp_remove_unused_table_orders_rows(self, table_name: str, grid_pos: int):
         try:
-            table_name = self.grids_table_name
+            table_name = self.slipped_orders_table_name
             query = (f"select * from {table_name}")
             self.mycursor.execute(query)
             # get all records
@@ -182,22 +207,6 @@ class DCA_DB:
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
 
-    def dcamp_remove_unused_active_orders_rows(self, grid_pos: int):
-        try:
-            table_name = self.active_orders_table_name
-            query = (f"select * from {table_name}")
-            self.mycursor.execute(query)
-            # get all records
-            records = self.mycursor.fetchall()
-            print(f'Total number of rows in table: {self.mycursor.rowcount}')
-
-            for row in records:
-                row_grid_pos = row[0]
-                if (row_grid_pos > grid_pos):
-                    self.dcamp_remove_row(table_name, row_grid_pos)
-
-        except mysql.connector.Error as error:
-            print("Failed to update record to database: {}".format(error))
 
     def dcamp_remove_row(self, table_name, grid_pos: int):
         try:

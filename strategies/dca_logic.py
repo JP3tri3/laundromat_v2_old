@@ -186,6 +186,14 @@ def get_updated_order_info(order, profit_percent_1: float, profit_percent_2: flo
         else:
             profit_percent = 0
 
+        # if 'timestamp' in order:
+        #     time_stamp = order['timestamp']
+        # else:
+        #     time_stamp = order['updated_at']
+
+        print('get_updated_order_info_test: ')
+        print(pprint.pprint(order))
+
         updated_order = ({'grid_pos' : int(grid_pos),
                             'link_name' : link_name,
                             'order_pos' : int(order_pos),
@@ -197,7 +205,7 @@ def get_updated_order_info(order, profit_percent_1: float, profit_percent_2: flo
                             'order_id' : order['order_id'],
                             'order_link_id' : order_link_id,
                             'leaves_qty' : order['leaves_qty'],
-                            'timestamp' : order['timestamp']
+                            'timestamp' : order['updated_at']
                             })
 
         return updated_order
