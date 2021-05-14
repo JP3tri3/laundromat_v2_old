@@ -150,6 +150,12 @@ class Strategy_DCA:
             self.grids_dict[1] = dca_logic.initialize_grid(total_entry_exit_orders, 0, 0, 0, 0)
             self.grids_dict[2] = dca_logic.initialize_grid(total_entry_exit_orders, 0, 0, 0, 0)
 
+            print(f'\ndetermining grid range:')
+            for key, value in self.grids_dict.items():
+                print(value)
+                # grid_range_price_check = value['range_price']
+                # print(f'last_price: {last_price}, grid_range_price_check: {grid_range_price_check}')
+
             # for key, value in self.grids_dict.items():
             #     print(v)
 
@@ -290,13 +296,20 @@ class Strategy_DCA:
 
             # determine if last price in an existing grid:
             print(f'\ndetermining grid range:')
-            for key, value in self.grids_dict.items():
+            for value in self.grids_dict.itervalues():
+                
+                
+
+                grid_key = key
+                grid_values = grid[key]
+                grid_key = key
                 grid_range_price_check = value['range_price']
+                print(type(grid_range_price_check))
                 print(f'last_price: {last_price}, grid_range_price_check: {grid_range_price_check}')
                 if ((self.entry_side == 'Buy') and (last_price >= grid_range_price_check) and (grid_range_price_check > grid_range_price)) or \
                     ((self.entry_side == 'Sell') and (last_price <= grid_range_price) and (grid_range_price_check < grid_range_price)):
                     grid_range_price = grid_range_price_check
-                    active_grid_pos = key
+                    active_grid_pos = grid_key
 
             print(f'determined grid_range_price: {grid_range_price}')
             print(f'determined active_grid_pos: {active_grid_pos}')
