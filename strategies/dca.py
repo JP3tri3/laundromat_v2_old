@@ -396,7 +396,7 @@ class Strategy_DCA:
                                 fill_order_check = False
                                 (f'exit order updated')
 
-                            pos_check -= 1
+                        pos_check -= 1
 
                     else:
                         print(f'something . is fucking .. wrong.  in initialize')
