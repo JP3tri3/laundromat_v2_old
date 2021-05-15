@@ -421,7 +421,7 @@ class Strategy_DCA:
                 
                 await asyncio.sleep(0)
                 if (total_entry_exit_orders_len != total_entry_exit_orders):
-                    total_entry_orders = (total_entry_orders - exit_orders_list_len)
+                    # total_entry_orders = (total_entry_exit_orders - total_entry_orders)
                     await self.create_secondary_orders(main_pos_entry, total_secondary_orders_1, secondary_orders_2, 
                                 total_entry_orders, profit_percent_1, profit_percent_2, secondary_entry_1_input_quantity, 
                                     secondary_entry_2_input_quantity)
@@ -861,7 +861,7 @@ class Strategy_DCA:
         secondary_1_entry_price = initial_price
         secondary_2_entry_price = initial_price
 
-        print(f'\ncurrent active entry orders: {len(active_entry_orders_list)}')
+        print(f'\ncurrent active entry orders: {active_entry_orders_len}')
         print(f'\navailable_entry_orders {available_entry_orders}')
 
         link_id_index = secondary_orders_2 + 1
@@ -877,12 +877,12 @@ class Strategy_DCA:
             active_entry_orders_list.remove(order)
 
         active_orders_index = 0
-        side = self.entry_side
+        
         last_price = self.api.last_price()
         for x in range(total_entry_orders):
             x += 1
 
-
+            side = self.entry_side
             if (x == num_check):
                 num_check += total_secondary_orders_1
                 input_quantity = secondary_entry_1_input_quantity
@@ -902,8 +902,6 @@ class Strategy_DCA:
                 side = 'Sell'
             elif (side == 'Sell') and (last_price > entry_price):
                 side = 'Buy'
-            else:
-                side = self.entry_side
 
             if (x <= available_entry_orders):
                 print(f'\navailable_entry_orders: {available_entry_orders}\n')
