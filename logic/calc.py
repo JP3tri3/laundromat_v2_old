@@ -37,7 +37,7 @@ class Calc:
     def calc_percent_difference(self, entry_side, entry_exit, entry_price, percent):
         if ((entry_side == 'Buy') and (entry_exit == 'entry')) or ((entry_side == 'Sell') and (entry_exit == 'exit')):
             percent = (1 - percent)
-        elif ((entry_side == 'Buy') and (entry_exit == 'exit')) or ((long_short == 'Sell') and (entry_exit == 'entry')):
+        elif ((entry_side == 'Buy') and (entry_exit == 'exit')) or ((entry_side == 'Sell') and (entry_exit == 'entry')):
             percent += 1
         else:
             print("Somethings Fucking Wrong with calc_percent_difference")

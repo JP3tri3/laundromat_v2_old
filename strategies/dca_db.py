@@ -233,18 +233,30 @@ class DCA_DB:
             print("Failed to update record to database: {}".format(error))
 
     def check_grid_row_exists(self, grid_pos):
+        return self.check_row_exists(self.grids_table_name, grid_pos)
+
+    def check_active_orders_row_exists(self, grid_pos):
+        return self.check_row_exists(self.active_orders_table_name, grid_pos)
+
+    def check_slipped_orders_row_exists(self, grid_pos):
+        return self.check_row_exists(self.slipped_orders_table_name, grid_pos)
+
+
+    def check_row_exists(self, table_name, grid_pos):
         try:
-            table_name = self.grids_table_name
             query = (f"SELECT EXISTS (SELECT * from {table_name} WHERE grid_pos={grid_pos})")
             self.mycursor.execute(query)
             result_list = self.mycursor.fetchall()
             num_rows = result_list[0][0]
+            print(f'check_row_exists for {table_name}: {num_rows}')
             if (num_rows == 0):
                 return False
             else:
                 return True
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
+
+
 
     def get_grid_row_values(self, grid_pos):
         
