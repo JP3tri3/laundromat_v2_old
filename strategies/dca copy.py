@@ -56,11 +56,11 @@ class Strategy_DCA:
     async def main(self):
         global grids_dict
         # TODO: Testing, remove
-        test_strat = True  
+        test_strat = False  
         # set initialize save state:
-        initialize_save_state_tf = False
+        initialize_save_state_tf = True
         # set reset all tables (will error if there is an active position!)
-        reset_all_db_tables = True
+        reset_all_db_tables = False
         main_strat = None
 
         if test_strat: main_strat = False 
@@ -155,11 +155,7 @@ class Strategy_DCA:
             # position_size = self.api.get_position_size()
 
             # grid_row_check = self.db.check_grid_row_exists(self.active_grid_pos)
-            price = self.api.last_price()
-            print(f'last_price: {price}')
-            price_list = dca_logic.generate_multi_order_price_list(0.025, 2, 3, 2, price, self.entry_side)
-            print(pprint.pprint(price_list))
-
+            print(f'grid_pos: {self.active_grid_pos}')
 
             # print(f'\nactive position size: {position_size}')
             # print(f'num_active_orders: {num_active_orders}\n')

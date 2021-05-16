@@ -215,6 +215,93 @@ def get_updated_order_info(order, profit_percent_1: float, profit_percent_2: flo
         sys.exit()
 
 
+
+
+
+def generate_multi_order_price_list(profit_percent_1: float, initial_exit_orders_num: int, initial_entry_orders_num: int, 
+                                secondary_orders_num: int, initial_price: float, entry_side: str):
+    
+    price_dict = {}
+    orders_dict = {}
+    
+    profit_percent_2 = (profit_percent_1 / (secondary_orders_num + 2))
+    total_exit_orders_num = initial_exit_orders_num + (initial_exit_orders_num * secondary_orders_num)
+    x = 0
+    
+    price = initial_price
+    initial_exit_orders = generate_order_price_list(profit_percent_1, entry_side, 'exit', initial_exit_orders_num, price)
+    for key in initial_exit_orders:
+        primary_value = initial_exit_orders[key]
+        price_dict['entry_1'] = primary_value['entry']
+        price_dict['exit'] = primary_value['exit']
+        
+        orders_dict[total_exit_orders_num - x] = price_dict
+        x += 1
+        price_dict = {}
+        price = primary_value['entry']
+        secondary_price = calc().calc_percent_difference(entry_side, 'exit', price, profit_percent_2)
+        secondary_exit_orders = generate_order_price_list(profit_percent_2, entry_side, 'exit', secondary_orders_num, secondary_price)
+        for k in secondary_exit_orders:
+            secondary_value = secondary_exit_orders[k]
+            price_dict['entry_2'] = secondary_value['entry']
+            price_dict['exit'] = secondary_value['exit']
+            orders_dict[total_exit_orders_num - x] = price_dict
+            x += 1
+            price_dict = {}
+
+    x += 1
+    orders_dict[x] = {'entry_initial' : initial_price}
+
+    price = initial_price
+    initial_entry_orders = generate_order_price_list(profit_percent_1, entry_side, 'entry', initial_entry_orders_num, price)
+    for key in initial_entry_orders:
+        primary_value = initial_entry_orders[key]
+        secondary_price = calc().calc_percent_difference(entry_side, 'entry', price, profit_percent_2)
+        secondary_entry_orders = generate_order_price_list(profit_percent_2, entry_side, 'entry', secondary_orders_num, secondary_price)
+        for k in secondary_entry_orders:
+            secondary_value = secondary_entry_orders[k]
+            price_dict['entry_2'] = secondary_value['entry']
+            price_dict['exit'] = secondary_value['exit']
+            x += 1
+            orders_dict[x] = price_dict
+            price_dict = {}
+
+        price_dict['entry_1'] = primary_value['entry']
+        price_dict['exit'] = primary_value['exit']
+        x += 1
+        orders_dict[x] = price_dict
+        price_dict = {}
+        price = primary_value['entry']
+
+    return orders_dict
+
+
+
+
+def generate_order_price_list(profit_percent, entry_side, entry_exit, num_orders, initial_price):
+    price_list_dict = {}
+
+    price = initial_price
+    x = 0
+    exit_count = num_orders
+    while (x < num_orders):
+        x += 1
+
+        if (entry_exit == 'entry'):
+            entry_price = calc().calc_percent_difference(entry_side, entry_exit, price, profit_percent)
+            exit_price = price
+            price = entry_price
+            price_list_dict[x] = {'entry' : entry_price, 'exit' : exit_price}
+        else:
+            entry_price = price
+            exit_price = calc().calc_percent_difference(entry_side, entry_exit, entry_price, profit_percent)
+            price = exit_price
+            price_list_dict[exit_count] = {'entry' : entry_price, 'exit' : exit_price}
+            exit_count -= 1
+        
+    return price_list_dict
+
+
 # UNUSED: get list differences
 # def get_list_differences(lst_1, lst_2):
 #     return (list(list(set(lst_1)-set(lst_2)) + list(set(lst_2)-set(lst_1))))
