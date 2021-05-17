@@ -13,11 +13,13 @@ def initialize_grid(size, pos_price, grid_range_price, grid_pos_size, ttl_pos_si
     grid_dict['range_price'] = grid_range_price
     grid_dict['pos_size'] = grid_pos_size
     grid_dict['ttl_pos_size'] = ttl_pos_size
+    grid_dict['main_pos_order_link_id'] = ''
     grid_dict['slipped_qty'] = 0
     grid_dict['pos_price'] = pos_price
     grid_dict['active'] = initialize_orders_list(size)
     grid_dict['cancelled'] = []
     grid_dict['slipped'] = []
+    grid_dict['grid_prices'] = []
 
     return grid_dict
 
