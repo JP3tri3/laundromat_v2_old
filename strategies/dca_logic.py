@@ -343,6 +343,13 @@ def generate_order_price_list(profit_percent, entry_side, entry_exit, num_orders
     return price_list_dict
 
 
+
+
+
+
+
+
+
 # UNUSED: get list differences
 # def get_list_differences(lst_1, lst_2):
 #     return (list(list(set(lst_1)-set(lst_2)) + list(set(lst_2)-set(lst_1))))

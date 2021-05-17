@@ -29,7 +29,7 @@ class DCA_DB:
         print('... DCA_DB initialized ...')
 
 
-    def initialize_all_tables(self, dlt_table_t_f: bool, create_table_t_f: bool):
+    def initialize_all_tables(self, dlt_table_t_f: bool, create_table_t_f: bool, total_entry_exit_orders: int):
         print(f'... initializing tables for {self.strat_name} ...')
         print(f'\ndelete all tables: {dlt_table_t_f}')
         if (dlt_table_t_f == True):
@@ -49,7 +49,7 @@ class DCA_DB:
             self.dcamp_create_orders_table(self.slipped_orders_table_name)
             self.dcamp_create_orders_table(self.filled_orders_table_name)
             self.dcamp_create_new_trade_data_table(self.trade_data_table_name, self.trade_id)
-            self.dcamp_create_new_grids_table(self.grids_table_name)
+            self.dcamp_create_new_grids_table(self.grids_table_name, total_entry_exit_orders)
         else:
             print('not creating new tables\n')
 
@@ -160,32 +160,68 @@ class DCA_DB:
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
 
-
-    def dcamp_create_new_grids_table(self, table_name: str):
+    def dcamp_create_new_grids_table(self, table_name: str, total_entry_exit_orders: int):
         try:
             print(f'creating new {table_name} orders table')
-            self.mycursor.execute(f"CREATE TABLE {table_name} (grid_pos INT UNSIGNED, grid_range_price FLOAT UNSIGNED, pos_size INT UNSIGNED, ttl_pos_size INT UNSIGNED, pos_price FLOAT UNSIGNED, slipped_exit_qty FLOAT UNSIGNED, time VARCHAR(50))")
 
-            time = str(self.time_stamp())
-            
-            query = (f"INSERT INTO {table_name} () VALUES (%s, %s, %s, %s, %s, %s, %s)")
-            vals = (0, 0.0, 0, 0, 0.0, 0.0, time)
+            query_addition = ''
 
+            for x in range(total_entry_exit_orders):
+                column_name = f', {x + 1}_entry_exit VARCHAR(50)'
+                query_addition += column_name
+
+            query = f"CREATE TABLE {table_name} (grid_pos INT UNSIGNED, grid_range_price FLOAT UNSIGNED, pos_size INT UNSIGNED, ttl_pos_size INT UNSIGNED, pos_price FLOAT UNSIGNED, slipped_exit_qty FLOAT UNSIGNED, time VARCHAR(50) {query_addition})"
             print(query)
-            self.mycursor.execute(query, vals)
+            self.mycursor.execute(query)
             self.db.commit()
 
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
 
-    def dcamp_create_new_grid_row(self, grid_pos: int):
+    def dcamp_create_new_grid_row(self, grid_pos: int, total_entry_exit_orders: int):
         try:
             print(f'dcamp_create_new_grid_row {grid_pos}')
             time = str(self.time_stamp())
-            query = (f"INSERT INTO {self.grids_table_name} () VALUES (%s, %s, %s, %s, %s, %s, %s)")
+            
+            query_addition = ''
+            
+            for x in range(total_entry_exit_orders):
+                addition = f', {0}'
+                query_addition += addition
+
+            query = (f"INSERT INTO {self.grids_table_name} () VALUES (%s, %s, %s, %s, %s, %s, %s{query_addition})")
+
             vals = (grid_pos, 0.0, 0, 0, 0.0, 0.0, time)
             print(query)
             self.mycursor.execute(query, vals)
+            self.db.commit()
+        except mysql.connector.Error as error:
+            print("Failed to update record to database: {}".format(error))
+
+
+    def dcamp_update_grid_prices(self, grid_pos: int, price_list_dict: list):
+        try:
+            print(f'dcamp_update_grid_prices: {grid_pos}')
+            time = str(self.time_stamp())
+            query_addition = ''
+
+            for key in price_list_dict:
+                column_name = f'{key}_entry_exit'
+                value = price_list_dict[key]
+
+                entry = value['entry']
+                exit = value['exit']
+                input_quantity = value['input_quantity']
+                pp = value['pp']
+
+                row_value = f'{entry}_{exit}_{input_quantity}_{pp}'
+
+                addition = f", {column_name} = '{row_value}'"
+                query_addition += addition
+
+            query = f"UPDATE {self.grids_table_name} SET time = '{time}'{query_addition} WHERE grid_pos = {grid_pos}"
+            print(query)
+            self.mycursor.execute(query)
             self.db.commit()
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
@@ -220,8 +256,6 @@ class DCA_DB:
 
     def replace_grid_row_value(self, grid_pos, position, value):
         try:
-            table_name = self.trade_data_table_name
-            trade_id = self.trade_id
 
             query = (f"UPDATE {self.grids_table_name} SET {position} = %s WHERE grid_pos = %s")
             vals = (value, grid_pos)
@@ -258,7 +292,7 @@ class DCA_DB:
 
 
 
-    def get_grid_row_values(self, grid_pos):
+    def get_grid_row_dict(self, grid_pos, total_entry_exit_orders):
         
         try:
             table_name = self.grids_table_name
@@ -278,6 +312,36 @@ class DCA_DB:
 
             self.db.commit()
 
+            price_list_dict = {}
+            name = '_entry_exit'
+            attach = '_'
+
+            for x in range(total_entry_exit_orders):
+                entry = ''
+                exit = ''
+                input_quantity = ''
+                pp = ''
+                key = x + 1
+                column_name = f'{key}{name}'
+                price_details = kv_dict[column_name]
+
+                count = 0
+                for char in price_details:
+                    if (char == attach) and (count != 3):
+                        count += 1
+                    elif (char != attach) and (count == 0):
+                        entry += char
+                    elif (char != attach) and (count == 1):
+                        exit += char
+                    elif (char != attach) and (count == 2):
+                        input_quantity += char
+                    elif (count == 3):
+                        pp += char
+
+                del kv_dict[column_name]
+                price_list_dict[key] = {'entry' : float(entry), 'exit' : float(exit), 'input_quantity' : int(input_quantity), 'pp' : pp}
+
+            kv_dict['price_list'] = price_list_dict
             return(kv_dict)
 
         except mysql.connector.Error as error:
