@@ -47,8 +47,8 @@ class Strategy_DCA:
         self.grid_range_price = 0
 
         # Set Trade Values
-        self.profit_percent_1 = 0
-        self.profit_percent_2 = 0
+        # self.profit_percent_1 = 0
+        # self.profit_percent_2 = 0
 
         print('... Strategy_DCA initialized ...')
 
@@ -68,35 +68,49 @@ class Strategy_DCA:
         
         #Set Trade Values
         num_initial_entry_orders = 3
-        num_initial_exit_orders = 1
+        num_initial_exit_orders = 2
         num_secondary_orders = 2
 
-        num_total_secondary_orders = num_initial_entry_orders * num_secondary_orders
-
-        profit_percent_1 = 0.0004
+        num_initial_secondary_entry_orders = num_initial_entry_orders * num_secondary_orders
+        num_initial_secondary_exit_orders = num_initial_exit_orders * num_secondary_orders
+        print(f'num_initial_secondary_entry_orders: {num_initial_secondary_entry_orders}')
+        print(f'num_initial_secondary_exit_orders: {num_initial_secondary_exit_orders}')
+        profit_percent_1 = 0.0025
         profit_percent_2 = (profit_percent_1 / (num_secondary_orders + 2))
+        print(f'profit_percent_1: {profit_percent_1}')
+        print(f'profit_percent_2: {profit_percent_2}')
 
         num_total_entry_orders = num_initial_entry_orders + (num_initial_entry_orders * num_secondary_orders)
         num_total_exit_orders = num_initial_exit_orders + (num_initial_exit_orders * num_secondary_orders)
-
+        print(f'num_total_entry_orders: {num_total_entry_orders}')
+        print(f'num_total_exit_orders: {num_total_exit_orders}')
         total_entry_exit_orders = num_total_entry_orders + num_total_exit_orders
-
-        percent_rollover = 0.0
+        print(f'total_entry_exit_orders: {total_entry_exit_orders}')
+        # percent_rollover = 0.0
 
         #TODO: add percent calculation: 
-        main_pos_percent_of_total_quantity =  0.4
-        secondary_pos_1_percent_of_total_quantity = 0.3
-        secondary_pos_2_percent_of_total_quantity = 0.3
+        main_pos_percent_of_total_quantity =  0
+        secondary_pos_1_percent_of_total_quantity = 0.5
+        secondary_pos_2_percent_of_total_quantity = 0.5
 
         position_trade_quantity = self.input_quantity / self.max_active_positions
+        print(f'position_trade_quantity: {position_trade_quantity}')
 
-        main_pos_input_quantity = round(position_trade_quantity * main_pos_percent_of_total_quantity, 0)
         secondary_pos_input_quantity_1 = round(position_trade_quantity * secondary_pos_1_percent_of_total_quantity, 0)
         secondary_pos_input_quantity_2 = round(position_trade_quantity * secondary_pos_2_percent_of_total_quantity, 0)
+        
+        print(f'secondary_pos_input_quantity_1: {secondary_pos_input_quantity_1}')
+        print(f'secondary_pos_input_quantity_2: {secondary_pos_input_quantity_2}')
 
-        input_quantity_1 = int(secondary_pos_input_quantity_1 / num_total_entry_orders)
-        input_quantity_2 = int(secondary_pos_input_quantity_2 / num_total_secondary_orders)
+        input_quantity_1 = int(secondary_pos_input_quantity_1 / (num_initial_entry_orders + num_initial_exit_orders))
+        input_quantity_2 = int(secondary_pos_input_quantity_2 / (num_initial_secondary_entry_orders + num_initial_secondary_exit_orders))
+        print(f'input_quantity_1: {input_quantity_1}')
+        print(f'input_quantity_2: {input_quantity_2}')
 
+        # main_pos_input_quantity = round(position_trade_quantity * main_pos_percent_of_total_quantity, 0)
+        main_pos_input_quantity = (num_initial_exit_orders * input_quantity_1) + \
+                                    (num_initial_secondary_exit_orders * input_quantity_2)
+        print(f'main_pos_input_quantity: {main_pos_input_quantity}')
 
         # initialize grids dict:
         self.grids_dict[self.active_grid_pos] = dca_logic.initialize_grid(total_entry_exit_orders, 0, 0, 0, 0)
@@ -756,7 +770,7 @@ class Strategy_DCA:
         if (input_quantity > 0):
             if (order_type == 'Market'):
                 link_id = dca_logic.create_link_id(entry_link_id, self.active_grid_pos, 1)
-                if (main_pos_entry != 0):
+                if (main_pos_entry == 0):
                     price = self.api.last_price()
                 else:
                     price = main_pos_entry
@@ -796,8 +810,10 @@ class Strategy_DCA:
         # determine active & available entry orders
         orders_to_cancel = active_entry_orders_len - num_total_entry_orders
 
-        print(f'\ncurrent active entry orders: {active_entry_orders_len}')
-        print(f'\num_total_available_orders {num_total_available_orders}')
+        print (f'\nnum_total_active_orders: {num_total_active_orders}')
+        print(f'current active entry orders: {active_entry_orders_len}')
+        print(f'um_total_available_orders {num_total_available_orders}')
+        print(f'orders_to_cancel: {orders_to_cancel}')
 
         # cancel extra orders, TODO: Change to remove cancellations (reposition orders?)
         if (orders_to_cancel > 0):
@@ -809,13 +825,13 @@ class Strategy_DCA:
                 self.api.cancel_order(order_id)
                 active_entry_orders_list.remove(order)
 
-        print(pprint.pprint(grid_prices))
-
         available_orders_index = 0
         active_orders_index = 0
 
         for k in grid_prices['price_list']:
             value = grid_prices['price_list'][k]
+            print(f'\nvalue in grid_prices (update_orders)')
+            print(value)
             side = value['side']
             input_quantity = value['input_quantity']
             link_name = value['pp']
@@ -848,8 +864,7 @@ class Strategy_DCA:
 
 
     #TODO: Address blank link order ID when manually closing order
-    async def update_secondary_orders(self, total_entry_exit_orders, input_quantity_1, 
-                            input_quantity_2):
+    async def update_secondary_orders(self, total_entry_exit_orders, input_quantity_1, input_quantity_2):
         global filled_orders_list
 
         while (len(self.filled_orders_list) > 0):
@@ -869,11 +884,8 @@ class Strategy_DCA:
             order_status = closed_order['order_status']
             price = closed_order['price']
             side = closed_order['side']
-            # link_id = closed_order['order_link_id']
             link_name = closed_order['link_name']
-            # leaves_qty = closed_order['leaves_qty']
             new_link_id = dca_logic.create_link_id(link_name, self.active_grid_pos, order_pos)
-
 
             # if (leaves_qty == 0):
             if (order_pos == 1):
