@@ -177,13 +177,13 @@ def get_table_pair(table_name, id_name):
         print("Failed to retrieve record from database: {}".format(error))
 
 ## Get Table Columns
-def get_table_column_names(table_name):
-    try:
-        for x in range(len(returnResult)):
-            column_name_list.append(returnResult[x][0])
+# def get_table_column_names(table_name):
+#     try:
+#         for x in range(len(returnResult)):
+#             column_name_list.append(returnResult[x][0])
 
-        db.commit()
-        return(column_name_list)
+#         db.commit()
+#         return(column_name_list)
 
     except mysql.connector.Error as error:
         print("Failed to retrieve record from database: {}".format(error))    

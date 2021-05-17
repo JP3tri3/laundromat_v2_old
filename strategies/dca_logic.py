@@ -218,62 +218,101 @@ def get_updated_order_info(order, profit_percent_1: float, profit_percent_2: flo
 
 
 
-def generate_multi_order_price_list(profit_percent_1: float, initial_exit_orders_num: int, initial_entry_orders_num: int, 
-                                secondary_orders_num: int, initial_price: float, entry_side: str):
+def generate_multi_order_price_list(profit_percent_1: float, profit_percent_2: float, num_initial_entry_orders: int, 
+                                    num_initial_exit_orders: int, num_secondary_orders: int, initial_price: float, 
+                                        input_quantity_1: int, input_quantity_2: int, entry_side: str):
     
+    if (entry_side == 'Buy'): exit_side = 'Sell'
+    else: exit_side = 'Buy'
+    
+    print(f'num_secondary_orders: {num_secondary_orders}')
+
+    print(f'num_initial_exit_orders: {num_initial_exit_orders}')
+    print(f'num_initial_entry_orders: {num_initial_entry_orders}')
+
+
     price_dict = {}
-    orders_dict = {}
+    grid_price_dict = {}
     
-    profit_percent_2 = (profit_percent_1 / (secondary_orders_num + 2))
-    total_exit_orders_num = initial_exit_orders_num + (initial_exit_orders_num * secondary_orders_num)
-    x = 0
-    
+    price_list = []
     price = initial_price
-    initial_exit_orders = generate_order_price_list(profit_percent_1, entry_side, 'exit', initial_exit_orders_num, price)
+    initial_exit_orders = generate_order_price_list(profit_percent_1, entry_side, 'exit', num_initial_exit_orders, price)
     for key in initial_exit_orders:
         primary_value = initial_exit_orders[key]
-        price_dict['entry_1'] = primary_value['entry']
+        price_dict['pp'] = 'pp_1'
+        price_dict['entry'] = primary_value['entry']
         price_dict['exit'] = primary_value['exit']
-        
-        orders_dict[total_exit_orders_num - x] = price_dict
-        x += 1
-        price_dict = {}
+        price_dict['side'] = exit_side
+        price_dict['input_quantity'] = input_quantity_1
+        price_list.append(price_dict)
         price = primary_value['entry']
+        price_dict = {}
+
+        
         secondary_price = calc().calc_percent_difference(entry_side, 'exit', price, profit_percent_2)
-        secondary_exit_orders = generate_order_price_list(profit_percent_2, entry_side, 'exit', secondary_orders_num, secondary_price)
+        secondary_exit_orders = generate_order_price_list(profit_percent_2, entry_side, 'exit', num_secondary_orders, secondary_price)
+        
         for k in secondary_exit_orders:
             secondary_value = secondary_exit_orders[k]
-            price_dict['entry_2'] = secondary_value['entry']
+            price_dict['pp'] = 'pp_2'
+            price_dict['entry'] = secondary_value['entry']
             price_dict['exit'] = secondary_value['exit']
-            orders_dict[total_exit_orders_num - x] = price_dict
-            x += 1
+            price_dict['side'] = exit_side
+            price_dict['input_quantity'] = input_quantity_2
+            price_list.append(price_dict)
             price_dict = {}
 
-    x += 1
-    orders_dict[x] = {'entry_initial' : initial_price}
+
+    price_dict['pp'] = 'main'
+    price_dict['entry'] = initial_price
+    price_dict['exit'] = 0
+    price_dict['side'] = entry_side
+    price_dict['input_quantity'] = 0
+
+    grid_price_dict['main_pos_price'] = price_dict
+    price_dict = {}
 
     price = initial_price
-    initial_entry_orders = generate_order_price_list(profit_percent_1, entry_side, 'entry', initial_entry_orders_num, price)
+    initial_entry_orders = generate_order_price_list(profit_percent_1, entry_side, 'entry', num_initial_entry_orders, price)
     for key in initial_entry_orders:
+        
         primary_value = initial_entry_orders[key]
         secondary_price = calc().calc_percent_difference(entry_side, 'entry', price, profit_percent_2)
-        secondary_entry_orders = generate_order_price_list(profit_percent_2, entry_side, 'entry', secondary_orders_num, secondary_price)
+        secondary_entry_orders = generate_order_price_list(profit_percent_2, entry_side, 'entry', num_secondary_orders, secondary_price)
+        
         for k in secondary_entry_orders:
             secondary_value = secondary_entry_orders[k]
-            price_dict['entry_2'] = secondary_value['entry']
+            price_dict['pp'] = 'pp_2'
+            price_dict['entry'] = secondary_value['entry']
             price_dict['exit'] = secondary_value['exit']
-            x += 1
-            orders_dict[x] = price_dict
+            price_dict['side'] = entry_side
+            price_dict['input_quantity'] = input_quantity_2
+            price_list.append(price_dict)
             price_dict = {}
 
-        price_dict['entry_1'] = primary_value['entry']
+        price_dict['pp'] = 'pp_1'
+        price_dict['entry'] = primary_value['entry']
         price_dict['exit'] = primary_value['exit']
-        x += 1
-        orders_dict[x] = price_dict
-        price_dict = {}
+        price_dict['side'] = entry_side
+        price_dict['input_quantity'] = input_quantity_1
+        price_list.append(price_dict)
         price = primary_value['entry']
+        price_dict = {}
 
-    return orders_dict
+    sorted_price_list = sorted(price_list, key=lambda k: k['exit'], reverse=True) 
+
+    price_list_dict = {}
+    x = 0
+    for price in sorted_price_list:
+        x +=1
+        price_list_dict[x] = price
+
+    grid_price_dict['price_list'] = price_list_dict
+
+    print('in dca_logic.generate_multi_order_price_list()')
+    print(pprint.pprint(grid_price_dict))
+
+    return grid_price_dict
 
 
 
