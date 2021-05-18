@@ -170,7 +170,7 @@ class DCA_DB:
                 column_name = f', {x + 1}_entry_exit VARCHAR(50)'
                 query_addition += column_name
 
-            query = f"CREATE TABLE {table_name} (grid_pos INT UNSIGNED, grid_range_price FLOAT UNSIGNED, pos_size INT UNSIGNED, ttl_pos_size INT UNSIGNED, pos_price FLOAT UNSIGNED, slipped_exit_qty FLOAT UNSIGNED, time VARCHAR(50) {query_addition})"
+            query = f"CREATE TABLE {table_name} (grid_pos INT UNSIGNED, grid_range_price FLOAT UNSIGNED, pos_size INT UNSIGNED, ttl_pos_size INT UNSIGNED, pos_price FLOAT UNSIGNED, slipped_exit_qty FLOAT UNSIGNED, main_exit_order_link_id VARCHAR(32), time VARCHAR(50) {query_addition})"
             print(query)
             self.mycursor.execute(query)
             self.db.commit()
@@ -189,9 +189,9 @@ class DCA_DB:
                 addition = f', {0}'
                 query_addition += addition
 
-            query = (f"INSERT INTO {self.grids_table_name} () VALUES (%s, %s, %s, %s, %s, %s, %s{query_addition})")
+            query = (f"INSERT INTO {self.grids_table_name} () VALUES (%s, %s, %s, %s, %s, %s, %s, %s{query_addition})")
 
-            vals = (grid_pos, 0.0, 0, 0, 0.0, 0.0, time)
+            vals = (grid_pos, 0.0, 0, 0, 0.0, 0.0, 'empty', time)
             print(query)
             self.mycursor.execute(query, vals)
             self.db.commit()
@@ -228,7 +228,6 @@ class DCA_DB:
 
     def dcamp_remove_unused_table_orders_rows(self, table_name: str, grid_pos: int):
         try:
-            table_name = self.slipped_orders_table_name
             query = (f"select * from {table_name}")
             self.mycursor.execute(query)
             # get all records
@@ -339,7 +338,7 @@ class DCA_DB:
                         pp += char
 
                 del kv_dict[column_name]
-                price_list_dict[key] = {'entry' : float(entry), 'exit' : float(exit), 'input_quantity' : int(input_quantity), 'pp' : pp}
+                price_list_dict[key] = {'entry' : float(entry), 'exit' : float(exit), 'input_quantity' : int(input_quantity), 'pp' : pp, 'side' : None}
 
             kv_dict['price_list'] = price_list_dict
             return(kv_dict)
@@ -565,3 +564,9 @@ class DCA_DB:
         except mysql.connector.Error as error:
             print("Failed to retrieve record from database: {}".format(error))
 
+    def create_trigger_values_table(self):
+        try:
+            print(f'creating new trigger_values table')
+            self.mycursor.execute(f"CREATE TABLE trigger_values (tf VARCHAR(12), vwap VARCHAR(12),  VARCHAR(8), link_id_pos INT UNSIGNED, link_name VARCHAR(8), side VARCHAR(8), status VARCHAR(12), input_quantity INT UNSIGNED, leaves_qty INT UNSIGNED, price FLOAT UNSIGNED, profit_percent FLOAT UNSIGNED, link_id VARCHAR(50), order_id VARCHAR(50), time VARCHAR(50), timestamp VARCHAR(50))")
+        except mysql.connector.Error as error:
+            print("Failed to update record to database: {}".format(error))

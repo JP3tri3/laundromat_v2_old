@@ -162,6 +162,8 @@ class Bybit_Api:
             else:
                 order_link_id = link_id
 
+            price = round(price, 1)
+
             if(order_type == 'Market'):
                 print(f"sending order {price} - {side} {input_quantity} {self.symbol_pair} {order_type} {stop_loss}")
                 self.client.Order.Order_new(side=side, symbol=self.symbol_pair, order_type="Market",
