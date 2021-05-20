@@ -1,10 +1,10 @@
 import sys
 sys.path.append("..")
-from logic.calc import Calc as calc
-from api.bybit_api import Bybit_Api
-from api.bybit_ws import Bybit_WS
-from strategies.dca_db import DCA_DB
-from strategies import dca_logic
+from logic.calc import Calc as calc # type: ignore
+from api.bybit_api import Bybit_Api # type: ignore
+from api.bybit_ws import Bybit_WS # type: ignore
+from strategies.dca_db import DCA_DB # type: ignore
+from strategies import dca_logic # type: ignore
 import asyncio
 import pprint
 
@@ -57,11 +57,11 @@ class Strategy_DCA:
         global grids_dict
         global active_grid_pos
         # TODO: Testing, remove
-        test_strat = False  
+        test_strat = True  
         # set initialize save state:
-        initialize_save_state_tf = True
+        initialize_save_state_tf = False
         # set reset all tables (will error if there is an active position!)
-        reset_all_db_tables = False
+        reset_all_db_tables = True
         main_strat = None
 
         if test_strat: main_strat = False 

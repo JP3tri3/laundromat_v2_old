@@ -1,8 +1,9 @@
 import sys
 sys.path.append("..")
-import config
+import config # type: ignore
 import datetime
 import mysql.connector
+import asyncio
 
 class DCA_DB:
 
@@ -28,6 +29,11 @@ class DCA_DB:
 
         print('... DCA_DB initialized ...')
 
+        create_trigger_tables = True
+
+        if (create_trigger_tables == True):
+            self.create_trigger_values_table('eth')
+            self.create_trigger_values_table('btc')
 
     def initialize_all_tables(self, dlt_table_t_f: bool, create_table_t_f: bool, total_entry_exit_orders: int):
         print(f'... initializing tables for {self.strat_name} ...')
@@ -48,7 +54,7 @@ class DCA_DB:
             self.dcamp_create_orders_table(self.active_orders_table_name)
             self.dcamp_create_orders_table(self.slipped_orders_table_name)
             self.dcamp_create_orders_table(self.filled_orders_table_name)
-            self.dcamp_create_new_trade_data_table(self.trade_data_table_name, self.trade_id)
+            self.dcamp_create_new_trade_data_table(self.trade_data_table_name)
             self.dcamp_create_new_grids_table(self.grids_table_name, total_entry_exit_orders)
         else:
             print('not creating new tables\n')
@@ -144,7 +150,7 @@ class DCA_DB:
         ct = datetime.datetime.now()
         return ct
     
-    def dcamp_create_new_trade_data_table(self, table_name: str, trade_id: str):
+    def dcamp_create_new_trade_data_table(self, table_name: str):
         try:
             print(f'creating new {table_name} orders table')
             self.mycursor.execute(f"CREATE TABLE {table_name} (trade_id VARCHAR(16), active_grid_pos INT UNSIGNED, grid_price_range FLOAT UNSIGNED, closed_orders INT UNSIGNED, active_orders INT UNSIGNED, total_pos_size FLOAT UNSIGNED, time VARCHAR(50))")
@@ -289,8 +295,6 @@ class DCA_DB:
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
 
-
-
     def get_grid_row_dict(self, grid_pos, total_entry_exit_orders):
         
         try:
@@ -347,13 +351,17 @@ class DCA_DB:
             print("Failed to retrieve record from database: {}".format(error))
 
     def get_active_order_row_values(self, order_id):
+        self.get_row_values_dict(self.active_orders_table_name, order_id)
+
+    def get_row_values_dict(self, table_name, id):
+
         try:
-            table_name = self.active_orders_table_name
             kv_dict = {}
             column_query = "SHOW COLUMNS FROM " + str(table_name)
             column_name_result = self.mycursor.execute(column_query)
             column_name_list = self.mycursor.fetchall()
-            row_query = "Select * FROM " + str(table_name) + " WHERE id = '" + str(order_id) + "' LIMIT 0,1"
+
+            row_query = "Select * FROM " + str(table_name) + " WHERE id = '" + str(id) + "' LIMIT 0,1"
             row_result = self.mycursor.execute(row_query)
             row_list = self.mycursor.fetchall()
             row_list = row_list[0]
@@ -564,9 +572,72 @@ class DCA_DB:
         except mysql.connector.Error as error:
             print("Failed to retrieve record from database: {}".format(error))
 
-    def create_trigger_values_table(self):
+    def create_trigger_values_table(self, symbol):
         try:
+            table_name = f'{symbol}_triggers'
+
+            self.delete_table(table_name)
+
             print(f'creating new trigger_values table')
-            self.mycursor.execute(f"CREATE TABLE trigger_values (tf VARCHAR(12), vwap VARCHAR(12),  VARCHAR(8), link_id_pos INT UNSIGNED, link_name VARCHAR(8), side VARCHAR(8), status VARCHAR(12), input_quantity INT UNSIGNED, leaves_qty INT UNSIGNED, price FLOAT UNSIGNED, profit_percent FLOAT UNSIGNED, link_id VARCHAR(50), order_id VARCHAR(50), time VARCHAR(50), timestamp VARCHAR(50))")
+            self.mycursor.execute(f"CREATE TABLE {table_name} (id VARCHAR(12), pre_vwap DECIMAL(12), vwap DECIMAL(12), pre_rsi DECIMAL(12), rsi DECIMAL(12),  pre_mfi DECIMAL(12), mfi DECIMAL(12), time VARCHAR(32))")
+
+            time = str(self.time_stamp())
+
+            tfs = ['1m', '4m', '6m', '9m', '12m', '16m', '24m', '30m', '1hr', '4hr', '1d']
+
+            for tf in tfs:  
+                query = (f"INSERT INTO {table_name} () VALUES (%s, %s, %s, %s, %s, %s, %s, %s)")
+                vals = (tf, 0, 0, 0, 0, 0, 0, time)
+                print(query)
+                self.mycursor.execute(query, vals)
+                self.db.commit()
+
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
+
+
+    async def replace_tf_trigger_values(self, data):
+        try:
+            
+            symbol = data['symbol']
+            id = data['tf']
+            table_name = f'{symbol}_triggers'
+
+            pre_kv_dict = self.get_row_values_dict(table_name, id)
+            await asyncio.sleep(0)
+            time = str(self.time_stamp())
+
+            pre_vwap = pre_kv_dict['vwap']
+            vwap = data['vwap']
+            pre_rsi = pre_kv_dict['rsi']
+            rsi = data['rsi']
+            pre_mfi = pre_kv_dict['mfi']
+            mfi = data['mfi']
+
+            query = (f"UPDATE {table_name} SET pre_vwap = %s, vwap = %s, pre_rsi = %s, rsi = %s, pre_mfi = %s, mfi = %s WHERE tf = %s")
+            vals = (pre_vwap, vwap, pre_rsi, rsi, pre_mfi, mfi, time)
+
+            print(query, vals)
+            print('')
+            self.mycursor.execute(query, vals)
+            await asyncio.sleep(0)
+            self.db.commit()
+        except mysql.connector.Error as error:
+            print("Failed to update record to database: {}".format(error))
+
+
+
+#alerts: 
+# {{plot("Mny Flow")}}
+# {{plot("VWAP")}}
+
+#TODO: Test and add async
+
+{
+    "passphrase": "test_pw_ftw",
+    "symbol": 'eth',
+    "tf": "1m",
+    "vwap": 13.2,
+    "rsi": 8.4,
+    "mfi": -15.7,
+}
