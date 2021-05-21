@@ -1,147 +1,139 @@
 import sys
 sys.path.append("..")
-# import auto
-import database.sql_connector as conn
-from logic.calc import Calc as calc
+import config # type: ignore
+import mysql.connector
+import asyncio
+import datetime
+import pprint
 
-class Database:
+db = mysql.connector.connect(
+    host = config.host,
+    user = config.user,
+    passwd = config.passwd,
+    auth_plugin = config.auth_plugin,
+    database = config.database_name
+)
 
-    print('... Database initialized ...')
+mycursor = db.cursor()
 
-    # # trades table:
+def time_stamp():
+    ct = datetime.datetime.now()
+    return ct
 
-    def update_trade_values(self, trade_id, strat_id, symbol, symbol_pair, key_input, limit_price_difference, leverage, input_quantity, side, stop_loss, percent_gain, trade_record_id):
-        return conn.update_trade_values(trade_id, strat_id, symbol, symbol_pair, key_input, limit_price_difference, leverage, input_quantity, side, stop_loss, percent_gain, trade_record_id)
+def update_trade_values(id_name, strat_id, symbol, symbol_pair, key_input, limit_price_difference, leverage, input_quantity, side, stop_loss, percent_gain, trade_record_id):
+    try:
+        query = "UPDATE trades SET strat_id='" +str(strat_id)+ "', symbol='" +str(symbol)+ "', symbol_pair='" +str(symbol_pair)+ "', key_input=" +str(key_input)+ ", limit_price_difference=" +str(limit_price_difference)+ ", leverage=" +str(leverage)+ ", input_quantity=" +str(input_quantity)+ ", side='" +str(side)+  "', stop_loss=" +str(stop_loss)+ ", percent_gain=" +str(percent_gain)+ ", trade_record_id=" +str(trade_record_id)+" WHERE id='" +str(id_name)+ "'" 
+        print(query)
+        mycursor.execute(query)
+        db.commit()
+    except mysql.connector.Error as error:
+        print("Failed to update record to database: {}".format(error))
 
-    def get_symbol(self, trade_id):
-        return conn.viewDbValue('trades', trade_id, 'symbol')
+def delete_table(table_name):
+    try:
+        print(f'dropping table: {table_name}')
+        query = "DROP TABLE " + str(table_name)
+        mycursor.execute(query)
+        db.commit()
+    except mysql.connector.Error as error:
+        print("Failed to update record to database: {}".format(error))
 
-    def get_key_input(self, trade_id):
-        return conn.viewDbValue('trades', trade_id, 'key_input')
+# create trigger values table
+def create_trigger_values_table(symbol):
+    try:
+        table_name = f'{symbol}_triggers'
 
-    def get_symbol_pair(self, trade_id):
-        return conn.viewDbValue('trades', trade_id, 'symbol_pair')
+        delete_table(table_name)
 
-    def get_limit_price_difference(self, trade_id):
-        return conn.viewDbValue('trades', trade_id, 'limit_price_difference')
+        print(f'creating new trigger_values table')
+        mycursor.execute(f"CREATE TABLE {table_name} (id VARCHAR(12), pre_vwap VARCHAR(12), vwap VARCHAR(12), pre_rsi VARCHAR(12), rsi VARCHAR(12),  pre_mfi VARCHAR(12), mfi VARCHAR(12), time VARCHAR(36))")
 
-    def get_side(self, trade_id):
-        return conn.viewDbValue('trades', trade_id, 'side')
+        time = str(time_stamp())
 
-    def set_side(self, trade_id, side):
-        return conn.updateTableValue('trades', trade_id, 'side', side)
+        tfs = ['1m', '4m', '6m', '9m', '12m', '16m', '24m', '30m', '1hr', '4hr', '1d']
 
-    def set_stop_loss(self, trade_id, stop_loss):
-        return conn.updateTableValue('trades', trade_id, 'stop_loss', stop_loss)
+        for tf in tfs:  
+            query = (f"INSERT INTO {table_name} () VALUES (%s, %s, %s, %s, %s, %s, %s, %s)")
+            vals = (tf, '0', '0', '0', '0', '0', '0', time)
+            print(query)
+            mycursor.execute(query, vals)
+            db.commit()
 
-    def get_input_quantity(self, trade_id):
-        return conn.viewDbValue('trades', trade_id, 'input_quantity')
+    except mysql.connector.Error as error:
+        print("Failed to update record to database: {}".format(error))
 
-    def set_input_quantity(self, trade_id, data_input):
-        conn.updateTableValue('trades', trade_id, 'input_quantity', data_input)
 
-    def get_leverage(self, trade_id):
-        return conn.viewDbValue('trades', trade_id, 'leverage')
+# replace trigger values
+async def replace_tf_trigger_values(data):
+    try:
+        
+        symbol = data['symbol']
+        id = data['tf']
+        table_name = f'{symbol}_triggers'
 
-    def set_trade_record_id(self, trade_id, trade_record_id):
-        conn.updateTableValue('trades', trade_id, 'trade_record_id', trade_record_id)
+        pre_kv_dict = get_row_values_dict(table_name, id)
+        await asyncio.sleep(0)
+        time = str(time_stamp())
 
-    # # strategy table:
+        print(pprint.pprint(pre_kv_dict))
 
-    def update_strat_values(self, strat_id, wt1, wt2, last_candle_high, last_candle_low, last_candle_vwap):
-        return conn.update_strat_values(strat_id, wt1, wt2, last_candle_high, last_candle_low, last_candle_vwap)
+        pre_vwap = str(round(float(pre_kv_dict['vwap']), 3))
+        vwap = str(round(float(data['vwap']), 3))
+        pre_rsi = str(round(float(pre_kv_dict['rsi']), 3))
+        rsi = str(round(float(data['rsi']), 3))
+        pre_mfi = str(round(float(pre_kv_dict['mfi']), 3))
+        mfi = str(round(float(data['mfi']), 3))
 
-    def get_wt1(self, strat_id):
-        return conn.viewDbValue('strategy', strat_id, 'wt1')    
+        query = (f"UPDATE {table_name} SET pre_vwap = %s, vwap = %s, pre_rsi = %s, rsi = %s, pre_mfi = %s, mfi = %s, time = %s WHERE id = %s")
+        vals = (pre_vwap, vwap, pre_rsi, rsi, pre_mfi, mfi, time, id)
 
-    def get_wt2(self, strat_id):
-        return conn.viewDbValue('strategy', strat_id, 'wt2')       
+        print(query, vals)
+        print('')
+        mycursor.execute(query, vals)
+        await asyncio.sleep(0)
+        db.commit()
+    except mysql.connector.Error as error:
+        print("Failed to update record to database: {}".format(error))
 
-    def get_last_candle_vwap(self, strat_id):
-        return conn.viewDbValue('strategy', strat_id, 'last_candle_vwap')       
 
-    def get_last_candle_low(self, strat_id):
-        return conn.viewDbValue('strategy', strat_id, 'last_candle_low')  
+def get_row_values_dict(table_name, id):
 
-    def get_last_candle_high(self, strat_id):
-        return conn.viewDbValue('strategy', strat_id, 'last_candle_high')  
+    try:
+        kv_dict = {}
+        column_query = "SHOW COLUMNS FROM " + str(table_name)
+        column_name_result = mycursor.execute(column_query)
+        column_name_list = mycursor.fetchall()
 
-    def get_active_position(self, strat_id):
-        return conn.viewDbValue('strategy', strat_id, 'active_position')  
+        row_query = "Select * FROM " + str(table_name) + " WHERE id = '" + str(id) + "' LIMIT 0,1"
+        row_result = mycursor.execute(row_query)
+        row_list = mycursor.fetchall()
+        row_list = row_list[0]
 
-    def set_active_position(self, strat_id, data_input):
-        return conn.updateTableValue('strategy', strat_id, 'active_position', data_input)  
+        for x in range(len(row_list)):        
+            kv_pair = [(column_name_list[x][0], row_list[x])]
+            kv_dict.update(kv_pair)
 
-    def get_new_trend(self, strat_id):
-        return conn.viewDbValue('strategy', strat_id, 'new_trend')  
+        db.commit()
 
-    def set_new_trend(self, strat_id, data_input):
-        return conn.updateTableValue('strategy', strat_id, 'new_trend', data_input)  
+        return(kv_dict)
 
-    def get_last_trend(self, strat_id):
-        return conn.viewDbValue('strategy', strat_id, 'last_trend')  
+    except mysql.connector.Error as error:
+        print("Failed to retrieve record from database: {}".format(error))
 
-    def set_last_trend(self, strat_id, data_input):
-        return conn.updateTableValue('strategy', strat_id, 'last_trend', data_input)  
+# delete trade records:
 
-    def get_active_trend(self, strat_id):
-        return conn.viewDbValue('strategy', strat_id, 'active_trend')  
-
-    def set_active_trend(self, strat_id, data_input):
-        return conn.updateTableValue('strategy', strat_id, 'active_trend', data_input)  
-
-    # # trade_records table:
-
-    def get_trade_record_total_dollar_gain(self, trade_record_id):
-        return conn.viewDbValue('trade_records', trade_record_id, 'total_p_l_dollar')
-
-    def get_trade_record_total_coin_gain(self, trade_record_id):
-        return conn.viewDbValue('trade_records', trade_record_id, 'total_p_l_coin')
-
-    def create_trade_record(self, trade_record_id, trade_id, strat_id, symbol_pair, side, input_quantity, entry_price, exit_price, stop_loss, percent_gain, dollar_gain, coin_gain, total_p_l_dollar, total_p_l_coin):
-        return conn.create_trade_record(trade_record_id, trade_id, strat_id, symbol_pair, side, input_quantity, entry_price, exit_price, stop_loss, percent_gain, dollar_gain, coin_gain, total_p_l_dollar, total_p_l_coin, calc().time_stamp())
-
-    def set_entry_price(self, trade_record_id, entry_price_input):
-        return conn.updateTableValue('trade_records', trade_record_id, 'entry_price', entry_price_input)
-
-    def get_entry_price(self, trade_record_id):
-        return conn.viewDbValue('trade_records', trade_record_id, 'entry_price')
-
-    def delete_trade_records(self, flag):
+## Delete 
+def delete_trade_records(flag):
+    try:
         if (flag == True):
             print("Deleting Trade Records...")
-            return conn.delete_trade_records()
+            query = "DELETE FROM trade_records"
+            print(query)
+            mycursor.execute(query)
+            db.commit()
         else:
             print("Maintaining Trade Records...")
             return 0
-
-    def get_trade_record_value(self, trade_record_id, trade_id, column_name):
-        return conn.view_db_values_multiple('trade_records', trade_record_id, trade_id, column_name)
-
-    # # table dicts:
-
-    def get_trade_values(self, trade_id):
-        return conn.get_table_pair('trades', trade_id)
-
-    def get_strat_values(self, table_name, strat_id):
-        return conn.get_table_pair(table_name, strat_id)
-
-
-
-    # # Clear All Values:
-
-    def clear_all_tables_values(self, flag):
-        if(flag == True):
-            print("Clearing Trade & Strat Table Values...")
-            conn.update_trade_values('bybit_manual', 'empty', 'empty', 'empty', 0, 0, 0, 0, 'empty', 0, 0, 0)
-            conn.update_trade_values('bybit_auto_1', 'empty', 'empty', 'empty', 0, 0, 0, 0, 'empty', 0, 0, 0)
-            conn.update_strat_values('1_min', 0, 0, 0, 0, 0)
-            conn.update_strat_values('9_min', 0, 0, 0, 0, 0)
-            conn.update_strat_values('16_min', 0, 0, 0, 0, 0)
-            conn.update_strat_values('30_min', 0, 0, 0, 0, 0)
-            conn.update_strat_trends('1_min', 'null', 'null', 'null', 'null')
-            conn.update_strat_trends('9_min', 'null', 'null', 'null', 'null')
-            conn.update_strat_trends('16_min', 'null', 'null', 'null', 'null')
-            conn.update_strat_trends('30_min', 'null', 'null', 'null', 'null')
-        else:
-            print("Maintaining Trade & Strat Table Values...")
+    
+    except mysql.connector.Error as error:
+        print("Failed to update record to database: {}".format(error))
