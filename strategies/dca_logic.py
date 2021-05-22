@@ -1,6 +1,6 @@
 import sys
 sys.path.append("..")
-from logic.calc import Calc as calc
+from logic.calc import Calc as calc # type: ignore
 import pprint
 
 # create dict to store existing grid:
