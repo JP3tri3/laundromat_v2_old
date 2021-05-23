@@ -58,7 +58,7 @@ class Strategy_DCA:
         global grids_dict
         global active_grid_pos
         # TODO: Testing, remove
-        test_strat = True     
+        test_strat = False     
         # set initialize save state:
         initialize_save_state_tf = True
         # set reset all tables (will error if there is an active position!)
@@ -461,19 +461,21 @@ class Strategy_DCA:
 
         while (True):
 
-            last_price = await self.ws.get_last_price()
             print(f'\nactive_grid_pos: {self.active_grid_pos}')
-            print(f'waiting_state: {waiting_state}\n')
+            print(f'waiting for price update:')
+            last_price = await self.ws.get_last_price()
             print(f'last_price: {last_price}')
+            
+            print(f'waiting_state: {waiting_state}\n')
 
             if (waiting_state):
                 print('in waiting_state')
                 # determine trend
 
-                confirmed_trend = trend.determine_new_trend()
+                confirmed_trend = trend.determine_new_trend(self.symbol, self.entry_side, total_entry_exit_orders, self.active_grid_pos)
+                print(f'confirmed_trend: {confirmed_trend}')
 
                 if (confirmed_trend):
-                    print(f'confirmed_trend: {confirmed_trend}')
                     print('initializing new grid: ')
                     confirmed_trend = False
 
@@ -492,10 +494,10 @@ class Strategy_DCA:
                     if (self.db.check_slipped_orders_row_exists(self.active_grid_pos) == False):
                         self.db.initialize_slipped_orders_table(self.active_grid_pos, total_entry_exit_orders)
 
+                    waiting_state = False
 
-                waiting_state = False
 
-            else:
+            if (not waiting_state):
                 if ((grid_range_price != 0) and (self.entry_side == 'Buy') and (last_price < grid_range_price)) \
                     or ((grid_range_price != 0) and (self.entry_side == 'Sell') and (last_price > grid_range_price)):
                     # outside grid determined: 
@@ -704,7 +706,8 @@ class Strategy_DCA:
         active_orders_index = 0
 
         for k in grid_prices:
-            print(f'\nk in create secondary orders: {k}')
+            print(f'last_price: {self.api.last_price()}')
+            print(f'\nin create secondary orders: {k}')
             value = grid_prices[k]
             print(f'\nvalue in grid_prices (update_orders)')
             print(value)
@@ -713,12 +716,12 @@ class Strategy_DCA:
 
             
             if (k > active_exit_orders_len):
-
+                order_input_quantity = value['input_quantity']
                 if (k == 1):
                     print(f'price_list k: {k}')
-                    input_quantity = grid_pos_size
+                    input_quantity = grid_pos_size + order_input_quantity
                 else:
-                    input_quantity = value['input_quantity']
+                    input_quantity = order_input_quantity
                 
 
                 if (side == None):
@@ -784,7 +787,7 @@ class Strategy_DCA:
 
             order_status = closed_order['order_status']
             order_pos = closed_order['order_pos']
-
+            side = closed_order['side']
             
             if (order_pos == 1):
                 print('\n order_pos = 1 ... create trade record break:')
