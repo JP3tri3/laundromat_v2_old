@@ -58,7 +58,7 @@ class Strategy_DCA:
         global grids_dict
         global active_grid_pos
         # TODO: Testing, remove
-        test_strat = False  
+        test_strat = True     
         # set initialize save state:
         initialize_save_state_tf = True
         # set reset all tables (will error if there is an active position!)
@@ -120,22 +120,20 @@ class Strategy_DCA:
                                             total_entry_exit_orders=total_entry_exit_orders)
             self.db.dcamp_create_new_grid_row(self.active_grid_pos, total_entry_exit_orders)
 
-        # initialize from saved state:
-        if (initialize_save_state_tf):
-            await self.initialize_saved_state(total_entry_exit_orders, profit_percent_1, profit_percent_2, num_total_entry_orders, main_pos_input_quantity)
-
-            # removes unused rows from DB (active / slipped / grid) / clears filled:
-            if (reset_all_db_tables == False):
-                self.db.initialize_non_peristent_tables(True, True)
-                self.db.dcamp_remove_unused_active_orders_rows(self.active_grid_pos)
-                self.db.dcamp_remove_slipped_orders_rows(self.active_grid_pos)
-                self.db.dcamp_remove_unused_grids_rows(self.active_grid_pos)
-
         if main_strat:
-            print('in main_strat')
+            print(f'\nin main_strat\n')
         # starting tasks
 
+            # initialize from saved state:
+            if (initialize_save_state_tf):
+                await self.initialize_saved_state(total_entry_exit_orders, profit_percent_1, profit_percent_2, num_total_entry_orders, main_pos_input_quantity)
 
+                # removes unused rows from DB (active / slipped / grid) / clears filled:
+                if (reset_all_db_tables == False):
+                    self.db.initialize_non_peristent_tables(True, True)
+                    self.db.dcamp_remove_unused_active_orders_rows(self.active_grid_pos)
+                    self.db.dcamp_remove_slipped_orders_rows(self.active_grid_pos)
+                    self.db.dcamp_remove_unused_grids_rows(self.active_grid_pos)
 
             # start main tasks
             task_ping_timer = asyncio.create_task(self.ws.ping(0.5, 15))
@@ -155,21 +153,13 @@ class Strategy_DCA:
         if test_strat:
             
             print(" !!!!! TESTING !!!!")
-
-
-
-            self.active_grid_pos = 0
+            self.active_grid_pos += 1
 
             # self.db.dcamp_create_new_grids_table('dcamp_grids_1', 4)
 
+            test_dict = trend.determine_new_trend(self.symbol)
+            print(pprint.pprint(test_dict))
 
-            pld = dca_logic.generate_multi_order_price_list(0.0025, 0.00025, num_initial_entry_orders, num_initial_exit_orders,
-                                                        num_secondary_orders, self.api.last_price(), 2, 1, self.entry_side)
-            self.db.dcamp_update_grid_prices(self.active_grid_pos, pld['price_list'])
-
-            db_list_test = self.db.get_grid_row_dict(self.active_grid_pos, total_entry_exit_orders)
-
-            print(pprint.pprint(db_list_test))
 
             # order = {'grid_pos': 1,
             #             'input_quantity': 10,

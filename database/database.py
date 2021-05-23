@@ -39,7 +39,7 @@ def delete_table(table_name):
         print("Failed to update record to database: {}".format(error))
 
 # create trigger values table
-def create_trigger_values_table(symbol):
+def create_trigger_values_table(symbol: str):
     try:
         table_name = f'{symbol}_triggers'
 
@@ -95,8 +95,17 @@ async def replace_tf_trigger_values(data):
     except mysql.connector.Error as error:
         print("Failed to update record to database: {}".format(error))
 
+def get_symbol_row_values_dict(symbol: str, tf: str) -> dict:
+    table_name = f'{symbol}_triggers'
+    kv_dict = get_row_values_dict(table_name, tf)
 
-def get_row_values_dict(table_name, id):
+    if (len(kv_dict) == 0):
+        print(f'\nget_symbol_row_values_dict len = 0')
+        print(f'check trigger table rows\n')
+
+    return kv_dict
+
+def get_row_values_dict(table_name: str, id: int) -> dict:
 
     try:
         kv_dict = {}
@@ -123,7 +132,7 @@ def get_row_values_dict(table_name, id):
 # delete trade records:
 
 ## Delete 
-def delete_trade_records(flag):
+def delete_trade_records(flag: bool):
     try:
         if (flag == True):
             print("Deleting Trade Records...")
