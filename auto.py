@@ -1,8 +1,8 @@
 import sys
 sys.path.append("..")
-import config
-from strategies.dca import Strategy_DCA
-from database.database import Database as db
+import config # type: ignore
+from strategies.dca import Strategy_DCA # type: ignore
+from database import database as mdb # type: ignore
 import asyncio
 
 api_key = config.BYBIT_TESTNET_API_KEY
@@ -18,29 +18,38 @@ entry_side = 'Buy'
 vwap_margin_neg = -10
 vwap_margin_pos = 10
 
+run_strat = True
+setup_default_tables = False
+delete_trade_records = True
+
+if (setup_default_tables):
+    mdb.create_trigger_values_table('ETH')
+    mdb.create_trigger_values_table('BTC')
+    mdb.setup_default_tables()
+
+if (delete_trade_records):
+    mdb.delete_trade_records(True)
+
 async def main():
 
-    #input true to clear:
-    # db().clear_all_tables_values(True)
-    db().delete_trade_records(True)
+    if run_strat:
+        if (symbol_pair == "BTCUSD"):
+            symbol = 'BTC'
+            key_input = 0
+            limit_price_difference = 0.50
+            mdb.update_trade_values(trade_id, strat_id, symbol, symbol_pair,  key_input, limit_price_difference, leverage, input_quantity, 'empty', 0, 0, 0)
+        elif (symbol_pair == "ETHUSD"):
+            symbol = 'ETH'
+            key_input = 1
+            limit_price_difference = 0.05
+            mdb.update_trade_values(trade_id, strat_id, symbol, symbol_pair, key_input, limit_price_difference, leverage, input_quantity, 'empty', 0, 0, 0)
+        else:
+            print("Invalid Symbol Pair")
 
-    if (symbol_pair == "BTCUSD"):
-        symbol = 'BTC'
-        key_input = 0
-        limit_price_difference = 0.50
-        db().update_trade_values(trade_id, strat_id, symbol, symbol_pair,  key_input, limit_price_difference, leverage, input_quantity, 'empty', 0, 0, 0)
-    elif (symbol_pair == "ETHUSD"):
-        symbol = 'ETH'
-        key_input = 1
-        limit_price_difference = 0.05
-        db().update_trade_values(trade_id, strat_id, symbol, symbol_pair, key_input, limit_price_difference, leverage, input_quantity, 'empty', 0, 0, 0)
-    else:
-        print("Invalid Symbol Pair")
+        strat = Strategy_DCA(api_key, api_secret, trade_id, strat_id, symbol, symbol_pair, \
+            key_input, input_quantity, leverage, limit_price_difference, max_active_positions, entry_side)
 
-    strat = Strategy_DCA(api_key, api_secret, trade_id, strat_id, symbol, symbol_pair, \
-        key_input, input_quantity, leverage, limit_price_difference, max_active_positions, entry_side)
-
-    await strat.main()
+        await strat.main()
 
 
 if __name__ == "__main__":  
@@ -48,5 +57,4 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         print("closed by interrupt")
-        loop.close()
 

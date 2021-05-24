@@ -69,15 +69,15 @@ class Strategy_DCA:
         else: main_strat = True
         
         #Set Trade Values
-        num_initial_entry_orders = 1
-        num_initial_exit_orders = 1
-        num_secondary_orders = 1
+        num_initial_entry_orders = 6
+        num_initial_exit_orders = 3
+        num_secondary_orders = 2
 
         num_initial_secondary_entry_orders = num_initial_entry_orders * num_secondary_orders
         num_initial_secondary_exit_orders = num_initial_exit_orders * num_secondary_orders
         print(f'num_initial_secondary_entry_orders: {num_initial_secondary_entry_orders}')
         print(f'num_initial_secondary_exit_orders: {num_initial_secondary_exit_orders}')
-        profit_percent_1 = 0.00075
+        profit_percent_1 = 0.075
         profit_percent_2 = (profit_percent_1 / (num_secondary_orders + 2))
         print(f'profit_percent_1: {profit_percent_1}')
         print(f'profit_percent_2: {profit_percent_2}')
@@ -459,6 +459,8 @@ class Strategy_DCA:
         outside_existing_grid = False
         confirmed_trend = False
 
+        #TODO: Handle secondary grids immediately below active grid to avoid waiting states, or move secondary orders
+
         while (True):
 
             print(f'\nactive_grid_pos: {self.active_grid_pos}')
@@ -467,6 +469,10 @@ class Strategy_DCA:
             print(f'last_price: {last_price}')
             
             print(f'waiting_state: {waiting_state}\n')
+
+            if ((grid_range_price != 0) and (self.entry_side == 'Buy') and (last_price > grid_range_price)) \
+                or ((grid_range_price != 0) and (self.entry_side == 'Sell') and  (last_price < grid_range_price)):
+                waiting_state = False
 
             if (waiting_state):
                 print('in waiting_state')
@@ -496,8 +502,20 @@ class Strategy_DCA:
 
                     waiting_state = False
 
+                elif ((outside_existing_grid) and (self.entry_side == 'Buy') and (last_price > grid_range_price)) \
+                    or ((outside_existing_grid) and (self.entry_side == 'Sell') and (last_price < grid_range_price)):
+                    # init_existing_grid:
+                    print('init existing grid')
+                    self.active_grid_pos -= 1
+                    total_previous_pos_size = self.grids_dict[self.active_grid_pos - 1]['ttl_pos_size']
+                    grid = self.grids_dict[self.active_grid_pos]
+                    grid_range_price = grid['range_price']
+                    grid_pos_size = grid['pos_size']
+                    outside_existing_grid = False
 
             if (not waiting_state):
+                previous_grid_range_price = self.grids_dict[self.active_grid_pos - 1]['range_price']
+                
                 if ((grid_range_price != 0) and (self.entry_side == 'Buy') and (last_price < grid_range_price)) \
                     or ((grid_range_price != 0) and (self.entry_side == 'Sell') and (last_price > grid_range_price)):
                     # outside grid determined: 
@@ -512,8 +530,8 @@ class Strategy_DCA:
                     waiting_state = True
                     outside_existing_grid = True
 
-                elif ((outside_existing_grid) and (self.entry_side == 'Buy') and (last_price > grid_range_price)) \
-                    or ((outside_existing_grid) and (self.entry_side == 'Sell') and (last_price < grid_range_price)):
+                elif ((outside_existing_grid) and (self.entry_side == 'Buy') and (last_price > previous_grid_range_price)) \
+                    or ((outside_existing_grid) and (self.entry_side == 'Sell') and (last_price < previous_grid_range_price)):
                     # init_existing_grid:
                     print('init existing grid')
                     self.active_grid_pos -= 1

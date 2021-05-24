@@ -20,6 +20,19 @@ def time_stamp():
     ct = datetime.datetime.now()
     return ct
 
+def setup_default_tables():
+    mycursor.execute("CREATE TABLE Strategy (id VARCHAR(50), wt1 DECIMAL, wt2 DECIMAL, last_candle_high DECIMAL, last_candle_low DECIMAL, last_candle_vwap DECIMAL, active_position VARCHAR(50), new_trend VARCHAR(50), last_trend VARCHAR(50), active_trend VARCHAR(50))")
+    mycursor.execute("CREATE TABLE trades (id VARCHAR(50),  strat_id VARCHAR(50), symbol VARCHAR(50), symbol_pair VARCHAR(50), key_input INT, limit_price_difference FLOAT, leverage INT, input_quantity INT, side VARCHAR(8), stop_loss FLOAT, percent_gain DECIMAL, trade_record_id INT)")
+    mycursor.execute("CREATE TABLE trade_records (id INT UNSIGNED, trade_id VARCHAR(16), strat_id VARCHAR(16), symbol_pair VARCHAR(50), side VARCHAR(8), input_quantity INT UNSIGNED, entry_price FLOAT UNSIGNED, exit_price FLOAT UNSIGNED, stop_loss FLOAT UNSIGNED, percent_gain VARCHAR(24), dollar_gain VARCHAR(24), coin_gain VARCHAR(24), total_p_l_dollar VARCHAR(24), total_p_l_coin VARCHAR(24), time VARCHAR(50))")
+
+    mycursor.execute("INSERT INTO trades () VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", ('bybit_manual', 'empty', 'empty', 'empty', 0, 0.0, 0, 0, 'empty', 0, 0, 0))
+    mycursor.execute("INSERT INTO trades () VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", ('bybit_auto_1', 'empty', 'empty', 'empty', 0, 0.0, 0, 0, 'empty', 0, 0, 0))
+    mycursor.execute("INSERT INTO trades () VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", ('bybit_auto_2', 'empty', 'empty', 'empty', 0, 0.0, 0, 0, 'empty', 0, 0, 0))
+    mycursor.execute("INSERT INTO trades () VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", ('bybit_auto_3', 'empty', 'empty', 'empty', 0, 0.0, 0, 0, 'empty', 0, 0, 0))
+    mycursor.execute("INSERT INTO trades () VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", ('bybit_auto_4', 'empty', 'empty', 'empty', 0, 0.0, 0, 0, 'empty', 0, 0, 0))
+
+    db.commit()
+
 def update_trade_values(id_name, strat_id, symbol, symbol_pair, key_input, limit_price_difference, leverage, input_quantity, side, stop_loss, percent_gain, trade_record_id):
     try:
         query = "UPDATE trades SET strat_id='" +str(strat_id)+ "', symbol='" +str(symbol)+ "', symbol_pair='" +str(symbol_pair)+ "', key_input=" +str(key_input)+ ", limit_price_difference=" +str(limit_price_difference)+ ", leverage=" +str(leverage)+ ", input_quantity=" +str(input_quantity)+ ", side='" +str(side)+  "', stop_loss=" +str(stop_loss)+ ", percent_gain=" +str(percent_gain)+ ", trade_record_id=" +str(trade_record_id)+" WHERE id='" +str(id_name)+ "'" 
