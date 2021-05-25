@@ -15,7 +15,7 @@ import pprint
 
 class Strategy_DCA:
 
-    def __init__(self, api_key, api_secret, trade_id, strat_id, symbol, symbol_pair, key_input, \
+    def __init__(self, instance, api_key, api_secret, trade_id, strat_id, symbol, symbol_pair, key_input, \
         input_quantity, leverage, limit_price_difference, max_active_positions, entry_side):
         self.trade_id = trade_id
         self.strat_id = strat_id
@@ -32,7 +32,6 @@ class Strategy_DCA:
 
         #TODO: Strat db settings, move to class arguments:
         strat_name = 'dcamp'
-        instance = 1
 
         self.api = Bybit_Api(api_key, api_secret, symbol, symbol_pair, self.key_input)
         self.ws = Bybit_WS(api_key, api_secret, symbol_pair, True)
@@ -47,6 +46,9 @@ class Strategy_DCA:
 
         self.active_grid_pos = 0
 
+        self.db.dcamp_create_new_trade_data_table('dcamp_trade_data')
+
+
         # Set Trade Values
         # self.profit_percent_1 = 0
         # self.profit_percent_2 = 0
@@ -58,26 +60,26 @@ class Strategy_DCA:
         global grids_dict
         global active_grid_pos
         # TODO: Testing, remove
-        test_strat = False     
+        test_strat = True     
         # set initialize save state:
         initialize_save_state_tf = True
         # set reset all tables (will error if there is an active position!)
-        reset_all_db_tables = False
+        reset_all_db_tables = True
         main_strat = None
 
         if test_strat: main_strat = False 
         else: main_strat = True
         
         #Set Trade Values
-        num_initial_entry_orders = 6
-        num_initial_exit_orders = 3
+        num_initial_entry_orders = 4
+        num_initial_exit_orders = 2
         num_secondary_orders = 2
 
         num_initial_secondary_entry_orders = num_initial_entry_orders * num_secondary_orders
         num_initial_secondary_exit_orders = num_initial_exit_orders * num_secondary_orders
         print(f'num_initial_secondary_entry_orders: {num_initial_secondary_entry_orders}')
         print(f'num_initial_secondary_exit_orders: {num_initial_secondary_exit_orders}')
-        profit_percent_1 = 0.075
+        profit_percent_1 = 0.01
         profit_percent_2 = (profit_percent_1 / (num_secondary_orders + 2))
         print(f'profit_percent_1: {profit_percent_1}')
         print(f'profit_percent_2: {profit_percent_2}')

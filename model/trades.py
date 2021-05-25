@@ -1,7 +1,7 @@
 
 import sys
 sys.path.append("..")
-from database.database import Database as db
+from database import database as db
 import datetime
 
 class Trade:

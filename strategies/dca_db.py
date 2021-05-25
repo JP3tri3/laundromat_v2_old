@@ -9,11 +9,11 @@ class DCA_DB:
 
     def __init__(self, trade_id, strat_name, instance):
         self.trade_id = trade_id
-        self.active_orders_table_name = strat_name + '_active_orders_' + str(instance)
-        self.slipped_orders_table_name = strat_name + '_slipped_orders_' + str(instance)
-        self.filled_orders_table_name = strat_name + '_filled_orders_' + str(instance)
-        self.grids_table_name = strat_name + '_grids_' + str(instance)
-        self.trade_data_table_name = strat_name + '_trade_data'
+        self.active_orders_table_name = f'{instance}_active_orders_{strat_name}'
+        self.slipped_orders_table_name = f'{instance}_slipped_orders_{strat_name}'
+        self.filled_orders_table_name = f'{instance}_filled_orders_{strat_name}'
+        self.grids_table_name = f'{instance}_grids_{strat_name}'
+        self.trade_data_table_name = f'{strat_name}_trade_data'
         self.trade_record_id = 0  
         self.strat_name = strat_name
 

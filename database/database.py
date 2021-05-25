@@ -54,7 +54,7 @@ def delete_table(table_name):
 # create trigger values table
 def create_trigger_values_table(symbol: str):
     try:
-        table_name = f'{symbol}_triggers'
+        table_name = f'triggers_{symbol}'
 
         delete_table(table_name)
 
@@ -82,7 +82,7 @@ async def replace_tf_trigger_values(data):
         
         symbol = data['symbol']
         id = data['tf']
-        table_name = f'{symbol}_triggers'
+        table_name = f'triggers_{symbol}'
 
         pre_kv_dict = get_row_values_dict(table_name, id)
         await asyncio.sleep(0)
@@ -109,7 +109,7 @@ async def replace_tf_trigger_values(data):
         print("Failed to update record to database: {}".format(error))
 
 def get_symbol_row_values_dict(symbol: str, tf: str) -> dict:
-    table_name = f'{symbol}_triggers'
+    table_name = f'triggers_{symbol}'
     kv_dict = get_row_values_dict(table_name, tf)
 
     if (len(kv_dict) == 0):

@@ -1,7 +1,7 @@
 import sys
 sys.path.append("..")
 import bybit # type: ignore
-from logic.calc import Calc as calc
+from logic.calc import Calc as calc # type: ignore
 from time import time, sleep
 import asyncio
 import time

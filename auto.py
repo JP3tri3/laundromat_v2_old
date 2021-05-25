@@ -7,25 +7,27 @@ import asyncio
 
 api_key = config.BYBIT_TESTNET_API_KEY
 api_secret = config.BYBIT_TESTNET_API_SECRET
-symbol_pair = 'BTCUSD'
+symbol_pair = 'ETHUSD'
 input_amount = 100
 leverage = 5
 input_quantity = input_amount * leverage
 max_active_positions = 10
 strat_id = 'dcamp'
-trade_id = 'bybit_auto_1'
+trade_id = 'bybit_auto_2'
+instance = 'testnet_1'
 entry_side = 'Buy'
 vwap_margin_neg = -10
 vwap_margin_pos = 10
 
 run_strat = True
-setup_default_tables = False
+setup_default_tables = True
 delete_trade_records = True
 
 if (setup_default_tables):
     mdb.create_trigger_values_table('ETH')
-    mdb.create_trigger_values_table('BTC')
-    mdb.setup_default_tables()
+    # mdb.create_trigger_values_table('BTC')
+    # mdb.setup_default_tables()
+
 
 if (delete_trade_records):
     mdb.delete_trade_records(True)
@@ -46,7 +48,7 @@ async def main():
         else:
             print("Invalid Symbol Pair")
 
-        strat = Strategy_DCA(api_key, api_secret, trade_id, strat_id, symbol, symbol_pair, \
+        strat = Strategy_DCA(instance, api_key, api_secret, trade_id, strat_id, symbol, symbol_pair, \
             key_input, input_quantity, leverage, limit_price_difference, max_active_positions, entry_side)
 
         await strat.main()
