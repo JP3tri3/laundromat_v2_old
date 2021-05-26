@@ -62,7 +62,7 @@ class Strategy_DCA:
         # TODO: Testing, remove
         test_strat = True     
         # set initialize save state:
-        initialize_save_state_tf = True
+        initialize_save_state_tf = False
         # set reset all tables (will error if there is an active position!)
         reset_all_db_tables = False
         main_strat = None
@@ -139,6 +139,7 @@ class Strategy_DCA:
 
             # start main tasks
             task_ping_timer = asyncio.create_task(self.ws.ping(0.5, 15))
+            task_pos_info = asyncio.create_task(self.collect_pos_info())
             task_collect_orders = asyncio.create_task(self.collect_orders())
             task_process_waiting_orders = asyncio.create_task(self.store_new_changed_filled_orders(profit_percent_1, profit_percent_2))
             task_start_dca_multi_position = asyncio.create_task(self.dca_multi_position(num_initial_entry_orders, num_initial_exit_orders, num_total_entry_orders, 
@@ -147,6 +148,7 @@ class Strategy_DCA:
 
 
             await task_ping_timer
+            await task_pos_info
             await task_collect_orders
             await task_process_waiting_orders   
             await task_start_dca_multi_position
@@ -155,32 +157,38 @@ class Strategy_DCA:
         if test_strat:
             
             print(" !!!!! TESTING !!!!")
-            self.active_grid_pos += 1
 
-            grid_range_margin = profit_percent_1
-            grid_percent_range = (profit_percent_1 * 6) + grid_range_margin
-            exit_grid_percent_range = (profit_percent_1 * 1) + grid_range_margin
-            price = self.api.last_price()
-            grid_range_price = calc().calc_percent_difference(self.entry_side, 'entry', price, grid_percent_range)
-            exit_grid_range_price = calc().calc_percent_difference(self.entry_side, 'exit', price, exit_grid_percent_range)
+            # last_price = await self.ws.get_last_price()
+            # print(f'last_price: {last_price}')
 
-            price_list = dca_logic.generate_multi_order_price_list(profit_percent_1, profit_percent_2, 6, 1, 1, price, 
-                                                                    input_quantity_1, input_quantity_2, self.entry_side)
+            await self.collect_pos_info()
+
+            # self.active_grid_pos += 1
+
+            # grid_range_margin = profit_percent_1
+            # grid_percent_range = (profit_percent_1 * 6) + grid_range_margin
+            # exit_grid_percent_range = (profit_percent_1 * 1) + grid_range_margin
+            # price = self.api.last_price()
+            # grid_range_price = calc().calc_percent_difference(self.entry_side, 'entry', price, grid_percent_range)
+            # exit_grid_range_price = calc().calc_percent_difference(self.entry_side, 'exit', price, exit_grid_percent_range)
+
+            # price_list = dca_logic.generate_multi_order_price_list(profit_percent_1, profit_percent_2, 6, 1, 1, price, 
+            #                                                         input_quantity_1, input_quantity_2, self.entry_side)
             
-            exit_price = price_list['price_list'][1]['exit']
-            entry_price = price_list['price_list'][13]['entry']
+            # exit_price = price_list['price_list'][1]['exit']
+            # entry_price = price_list['price_list'][13]['entry']
             
-            print(f'\ngrid_percent_range: {grid_percent_range}')
-            print(f'\exit_grid_range_price: {exit_grid_range_price}')
-            print(f'exit_price: {exit_price}')
-            print(f'difference: {exit_price - exit_grid_range_price}')
+            # print(f'\ngrid_percent_range: {grid_percent_range}')
+            # print(f'\exit_grid_range_price: {exit_grid_range_price}')
+            # print(f'exit_price: {exit_price}')
+            # print(f'difference: {exit_price - exit_grid_range_price}')
 
-            print(f'\ngrid_range_price: {grid_range_price}')
-            print(f'entry_price: {entry_price}')
-            print(f'difference: {entry_price - grid_range_price}')
+            # print(f'\ngrid_range_price: {grid_range_price}')
+            # print(f'entry_price: {entry_price}')
+            # print(f'difference: {entry_price - grid_range_price}')
 
-            print('')
-            print(self.api.get_position_size())
+            # print('')
+            # print(self.api.get_position_size())
 
             # order = {'grid_pos': 1,
             #             'input_quantity': 10,
@@ -202,6 +210,14 @@ class Strategy_DCA:
         self.api.place_order(self.api.last_price() - 400, 'Market', 'Buy', 10, 0, False, 'open-1-1-356342343')
         # link_id = (f'main-{self.active_grid_pos}-3-356342341')
         # self.api.place_order(self.api.last_price() - 500, 'Limit', 'Buy', 10, 0, False, 'main-1-3-356342343')
+
+    async def collect_pos_info(self):
+
+        while (True):
+            await asyncio.sleep(0)
+            pos_size = await self.ws.get_pos_size()
+            print(pos_size)
+
 
     async def collect_orders_test(self, profit_percent_1, profit_percent_2):
         global grids_dict

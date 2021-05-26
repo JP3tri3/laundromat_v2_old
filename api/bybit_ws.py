@@ -47,30 +47,20 @@ class Bybit_WS:
 
     async def get_pos_info(self):
         self.ws.subscribe_position()
-        flag = True
-        while (flag == True):
+        while (True):
             await asyncio.sleep(self.interval)
             data = self.ws.get_data("position")
             if data:
-                new_data = data
-                # print(pprint.pprint(new_data))
-                flag = False
-        print(pprint.pprint(new_data))
-        return new_data
+                return data[0]
 
-    async def get_pos_size(self, pos_size_api):
+    async def get_pos_size(self):
         self.ws.subscribe_position()
-        flag = True
-        while (flag == True):
+        while (True):
             await asyncio.sleep(self.interval)
             data = self.ws.get_data("position")
-            # pos_size = data[0]
             if data:
                 pos_size = data[0]['size']
-                if (pos_size != pos_size_api):
-                    flag = False
-        # print(pos_size)
-        # return pos_size       
+                return pos_size
 
 
     async def get_order(self):
