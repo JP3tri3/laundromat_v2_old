@@ -59,15 +59,15 @@ def create_trigger_values_table(symbol: str):
         delete_table(table_name)
 
         print(f'creating new trigger_values table')
-        mycursor.execute(f"CREATE TABLE {table_name} (id VARCHAR(12), pre_vwap VARCHAR(12), vwap VARCHAR(12), pre_rsi VARCHAR(12), rsi VARCHAR(12),  pre_mfi VARCHAR(12), mfi VARCHAR(12), time VARCHAR(36))")
+        mycursor.execute(f"CREATE TABLE {table_name} (id VARCHAR(12), count int(12), open float(12), close float(12), high float(12), low float(12), acs float(12), pre_vwap VARCHAR(12), vwap VARCHAR(12), pre_rsi VARCHAR(12), rsi VARCHAR(12),  pre_mfi VARCHAR(12), mfi VARCHAR(12), time VARCHAR(36))")
 
         time = str(time_stamp())
 
         tfs = ['1m', '4m', '6m', '9m', '12m', '16m', '24m', '30m', '1hr', '4hr', '1d']
 
         for tf in tfs:  
-            query = (f"INSERT INTO {table_name} () VALUES (%s, %s, %s, %s, %s, %s, %s, %s)")
-            vals = (tf, '0', '0', '0', '0', '0', '0', time)
+            query = (f"INSERT INTO {table_name} () VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)")
+            vals = (tf, 0, 0.0, 0.0, 0.0, 0.0, '0', '0', '0', '0', '0', '0', '0', time)
             print(query)
             mycursor.execute(query, vals)
             db.commit()
@@ -90,6 +90,42 @@ async def replace_tf_trigger_values(data):
 
         print(pprint.pprint(pre_kv_dict))
 
+        # separate tf:
+
+
+        high = data['high']
+        low = data['low']
+
+        id_time = ''
+        frame = ''
+        counter = 0
+        for char in id:
+            if (char.isnumeric() and (counter == 0)):
+                id_time += char
+            elif (counter == 1):
+                frame += char
+            else:
+                counter += 1
+        
+        if (frame == 'hr'):
+            id_time = id_time * 60
+        elif (frame == 'd'):
+            id_time = id_time * 1440
+
+        id_time = int(id_time)
+
+        # calc acs:
+        count = pre_kv_dict['count']
+        candle_size = high - low
+        
+        if (count != id_time):
+            count += 1
+        else:
+            count = 1
+
+        open = float(data['open'])
+        close = data['close']
+        acs = candle_size
         pre_vwap = str(round(float(pre_kv_dict['vwap']), 3))
         vwap = str(round(float(data['vwap']), 3))
         pre_rsi = str(round(float(pre_kv_dict['rsi']), 3))
@@ -97,8 +133,8 @@ async def replace_tf_trigger_values(data):
         pre_mfi = str(round(float(pre_kv_dict['mfi']), 3))
         mfi = str(round(float(data['mfi']), 3))
 
-        query = (f"UPDATE {table_name} SET pre_vwap = %s, vwap = %s, pre_rsi = %s, rsi = %s, pre_mfi = %s, mfi = %s, time = %s WHERE id = %s")
-        vals = (pre_vwap, vwap, pre_rsi, rsi, pre_mfi, mfi, time, id)
+        query = (f"UPDATE {table_name} SET count = %s, open = %s, close = %s, high = %s, low = %s, acs = %s, pre_vwap = %s, vwap = %s, pre_rsi = %s, rsi = %s, pre_mfi = %s, mfi = %s, time = %s WHERE id = %s")
+        vals = (count, open, close, high, low, acs, pre_vwap, vwap, pre_rsi, rsi, pre_mfi, mfi, time, id)
 
         print(query, vals)
         print('')

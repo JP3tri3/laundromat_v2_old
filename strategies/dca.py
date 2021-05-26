@@ -64,7 +64,7 @@ class Strategy_DCA:
         # set initialize save state:
         initialize_save_state_tf = True
         # set reset all tables (will error if there is an active position!)
-        reset_all_db_tables = True
+        reset_all_db_tables = False
         main_strat = None
 
         if test_strat: main_strat = False 
@@ -128,7 +128,7 @@ class Strategy_DCA:
 
             # initialize from saved state:
             if (initialize_save_state_tf):
-                await self.initialize_saved_state(total_entry_exit_orders, profit_percent_1, profit_percent_2, num_total_entry_orders, main_pos_input_quantity)
+                await self.initialize_saved_state(total_entry_exit_orders, profit_percent_1, profit_percent_2, num_total_entry_orders)
 
                 # removes unused rows from DB (active / slipped / grid) / clears filled:
                 if (reset_all_db_tables == False):
@@ -157,11 +157,30 @@ class Strategy_DCA:
             print(" !!!!! TESTING !!!!")
             self.active_grid_pos += 1
 
-            # self.db.dcamp_create_new_grids_table('dcamp_grids_1', 4)
+            grid_range_margin = profit_percent_1
+            grid_percent_range = (profit_percent_1 * 6) + grid_range_margin
+            exit_grid_percent_range = (profit_percent_1 * 1) + grid_range_margin
+            price = self.api.last_price()
+            grid_range_price = calc().calc_percent_difference(self.entry_side, 'entry', price, grid_percent_range)
+            exit_grid_range_price = calc().calc_percent_difference(self.entry_side, 'exit', price, exit_grid_percent_range)
 
-            test_dict = trend.determine_new_trend(self.symbol)
-            print(pprint.pprint(test_dict))
+            price_list = dca_logic.generate_multi_order_price_list(profit_percent_1, profit_percent_2, 6, 1, 1, price, 
+                                                                    input_quantity_1, input_quantity_2, self.entry_side)
+            
+            exit_price = price_list['price_list'][1]['exit']
+            entry_price = price_list['price_list'][13]['entry']
+            
+            print(f'\ngrid_percent_range: {grid_percent_range}')
+            print(f'\exit_grid_range_price: {exit_grid_range_price}')
+            print(f'exit_price: {exit_price}')
+            print(f'difference: {exit_price - exit_grid_range_price}')
 
+            print(f'\ngrid_range_price: {grid_range_price}')
+            print(f'entry_price: {entry_price}')
+            print(f'difference: {entry_price - grid_range_price}')
+
+            print('')
+            print(self.api.get_position_size())
 
             # order = {'grid_pos': 1,
             #             'input_quantity': 10,
@@ -174,22 +193,6 @@ class Strategy_DCA:
             #             'price': 58571.0,
             #             'profit_percent': 0.0004,
             #             'side': 'Buy'}
-
-            # order_2 = {'grid_pos': 1,
-            #             'input_quantity': 10,
-            #             'leaves_qty': 10,
-            #             'link_name': 'main',
-            #             'order_id': 'b06a9d22-1c9f-4767-a566-028f13648703',
-            #             'order_link_id': 'main-1-1-3563423431620527220.584705',
-            #             'order_pos': 1,
-            #             'order_status': 'Cancelled',
-            #             'price': 58571.0,
-            #             'profit_percent': 0.0004,
-            #             'side': 'Buy'}
-
-            # # print(self.grids_dict[self.active_grid_pos])
-
-            # self.db.dcamp_replace_active_order(order)
 
 
 
@@ -220,8 +223,7 @@ class Strategy_DCA:
         print(link_name)
 
     # initialize from saved state:
-    async def initialize_saved_state(self, total_entry_exit_orders, profit_percent_1, profit_percent_2, num_total_entry_orders, 
-                                        main_pos_input_quantity):
+    async def initialize_saved_state(self, total_entry_exit_orders, profit_percent_1, profit_percent_2, num_total_entry_orders):
         global active_grid_pos
         global grids_dict
         global slipped_quantity
@@ -535,7 +537,8 @@ class Strategy_DCA:
                 elif ((outside_existing_grid) and (self.entry_side == 'Buy') and (last_price > previous_grid_range_price)) \
                     or ((outside_existing_grid) and (self.entry_side == 'Sell') and (last_price < previous_grid_range_price)):
                     # init_existing_grid:
-                    print('init existing grid')
+                    print(f'entering previous grid...')
+                    print(f'init existing grid\n')
                     self.active_grid_pos -= 1
                     total_previous_pos_size = self.grids_dict[self.active_grid_pos - 1]['ttl_pos_size']
                     grid = self.grids_dict[self.active_grid_pos]
@@ -565,7 +568,7 @@ class Strategy_DCA:
     def determine_grid_pos_size(self, total_previous_pos_size, ttl_pos_size):
         global active_grid_pos
         global grids_dict
-
+        print(f'\nactive_grid_pos: {self.active_grid_pos}')
         stored_ttl_pos_size = self.grids_dict[self.active_grid_pos]['ttl_pos_size']
         if ttl_pos_size != stored_ttl_pos_size:
             self.grids_dict[self.active_grid_pos]['ttl_pos_size'] = ttl_pos_size
@@ -620,6 +623,7 @@ class Strategy_DCA:
             await self.create_secondary_orders(grid_prices, total_entry_exit_orders, num_total_entry_orders, grid_pos_size)
 
             grid_range_price = calc().calc_percent_difference(self.entry_side, 'entry', main_pos_entry_price, grid_percent_range)
+
             self.db.replace_grid_row_value(self.active_grid_pos, 'grid_range_price', grid_range_price)
 
     async def create_main_pos_entry(self, order_type, entry_side, input_quantity, main_pos_entry):

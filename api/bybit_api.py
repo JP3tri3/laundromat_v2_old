@@ -271,6 +271,8 @@ class Bybit_Api:
 
         except Exception as e:
             print("an exception occured in get_position_result - {}".format(e))
+            #TODO: doublecheck / fix 
+            self.get_position_result()
 
     def get_position_side(self):
         try:
