@@ -21,7 +21,7 @@ class Bybit_Api:
         self.key_input = key_input
         self.interval = 0
 
-        print('... Bybit_API initialized ...')
+        print(f'... Bybit_API initialized : symbol: {self.symbol_pair} ...')
 
     def get_key_input(self):
         return self.key_input
@@ -101,7 +101,7 @@ class Bybit_Api:
 
     def cancel_order(self, order_id):
         print("Cancelling Order: " + order_id)
-        self.client.Order.Order_cancel(symbol="BTCUSD", order_id=order_id).result()
+        self.client.Order.Order_cancel(symbol=self.symbol_pair, order_id=order_id).result()
 
     def cancel_all_orders(self):
         # Cancel all API call: doesn't seem to be working / double check the following:

@@ -45,7 +45,7 @@ class Strategy_DCA:
         self.waiting_orders_list = []
 
         self.active_grid_pos = 0
-
+        self.pos_size = 0
         self.db.dcamp_create_new_trade_data_table('dcamp_trade_data')
 
 
@@ -60,7 +60,7 @@ class Strategy_DCA:
         global grids_dict
         global active_grid_pos
         # TODO: Testing, remove
-        test_strat = True     
+        test_strat = False
         # set initialize save state:
         initialize_save_state_tf = False
         # set reset all tables (will error if there is an active position!)
@@ -71,8 +71,8 @@ class Strategy_DCA:
         else: main_strat = True
         
         #Set Trade Values
-        num_initial_entry_orders = 4
-        num_initial_exit_orders = 2
+        num_initial_entry_orders = 3
+        num_initial_exit_orders = 1
         num_secondary_orders = 2
 
         num_initial_secondary_entry_orders = num_initial_entry_orders * num_secondary_orders
@@ -139,9 +139,9 @@ class Strategy_DCA:
 
             # start main tasks
             task_ping_timer = asyncio.create_task(self.ws.ping(0.5, 15))
-            task_pos_info = asyncio.create_task(self.collect_pos_info())
+            task_pos_info = asyncio.create_task(self.get_pos_size())
             task_collect_orders = asyncio.create_task(self.collect_orders())
-            task_process_waiting_orders = asyncio.create_task(self.store_new_changed_filled_orders(profit_percent_1, profit_percent_2))
+            task_process_waiting_orders = asyncio.create_task(self.store_new_changed_filled_orders(profit_percent_1, profit_percent_2, total_entry_exit_orders))
             task_start_dca_multi_position = asyncio.create_task(self.dca_multi_position(num_initial_entry_orders, num_initial_exit_orders, num_total_entry_orders, 
                                                                 num_secondary_orders, profit_percent_1, profit_percent_2, total_entry_exit_orders, 
                                                                 main_pos_input_quantity, input_quantity_1, input_quantity_2))
@@ -161,7 +161,7 @@ class Strategy_DCA:
             # last_price = await self.ws.get_last_price()
             # print(f'last_price: {last_price}')
 
-            await self.collect_pos_info()
+
 
             # self.active_grid_pos += 1
 
@@ -210,14 +210,6 @@ class Strategy_DCA:
         self.api.place_order(self.api.last_price() - 400, 'Market', 'Buy', 10, 0, False, 'open-1-1-356342343')
         # link_id = (f'main-{self.active_grid_pos}-3-356342341')
         # self.api.place_order(self.api.last_price() - 500, 'Limit', 'Buy', 10, 0, False, 'main-1-3-356342343')
-
-    async def collect_pos_info(self):
-
-        while (True):
-            await asyncio.sleep(0)
-            pos_size = await self.ws.get_pos_size()
-            print(pos_size)
-
 
     async def collect_orders_test(self, profit_percent_1, profit_percent_2):
         global grids_dict
@@ -471,6 +463,7 @@ class Strategy_DCA:
         grid_range_margin = 0.01
         grid_percent_range = (profit_percent_1 * num_total_entry_orders) + grid_range_margin
         grid_range_price = self.grids_dict[self.active_grid_pos]['range_price']
+        previous_grid_range_price = 0
         grid_pos_size = 0
 
         total_previous_pos_size = 0
@@ -487,7 +480,8 @@ class Strategy_DCA:
             print(f'waiting for price update:')
             last_price = await self.ws.get_last_price()
             print(f'last_price: {last_price}')
-            
+            print(f'outside_existing_grid: {outside_existing_grid}')
+
             print(f'waiting_state: {waiting_state}\n')
 
             if ((grid_range_price != 0) and (self.entry_side == 'Buy') and (last_price > grid_range_price)) \
@@ -506,9 +500,11 @@ class Strategy_DCA:
                     confirmed_trend = False
 
                     # initialize new grid:
+                    previous_grid_range_price = self.grids_dict[self.active_grid_pos]['range_price']
                     self.active_grid_pos += 1
                     print(f'\nupdated active_grid_pos: {self.active_grid_pos} \n')
                     total_previous_pos_size = self.grids_dict[self.active_grid_pos - 1]['ttl_pos_size']
+                    
                     grid_range_price = 0
                     self.grids_dict[self.active_grid_pos] = dca_logic.initialize_grid(total_entry_exit_orders, 0, grid_range_price, 0, 0)
                     
@@ -534,7 +530,6 @@ class Strategy_DCA:
                     outside_existing_grid = False
 
             if (not waiting_state):
-                previous_grid_range_price = self.grids_dict[self.active_grid_pos - 1]['range_price']
                 
                 if ((grid_range_price != 0) and (self.entry_side == 'Buy') and (last_price < grid_range_price)) \
                     or ((grid_range_price != 0) and (self.entry_side == 'Sell') and (last_price > grid_range_price)):
@@ -565,16 +560,14 @@ class Strategy_DCA:
                 else:
                     # inside grid determined: 
                     waiting_state = False
-                    ttl_pos_size = self.api.get_position_size()
+                    ttl_pos_size = self.pos_size
                     grid_pos_size = self.determine_grid_pos_size(total_previous_pos_size, ttl_pos_size)
-
-                    # if filled orders, process:
-                    await self.update_secondary_orders(total_entry_exit_orders)
 
                     await self.handle_initial_entry_exit_orders(profit_percent_1, profit_percent_2, grid_percent_range, main_pos_input_quantity, 
                                                                 total_entry_exit_orders, num_total_entry_orders, num_secondary_orders, 
                                                                     input_quantity_1, input_quantity_2, grid_pos_size, ttl_pos_size, 
-                                                                        num_initial_entry_orders, num_initial_exit_orders,)
+                                                                        num_initial_entry_orders, num_initial_exit_orders, 
+                                                                            previous_grid_range_price)
 
             await asyncio.sleep(0)
 
@@ -585,6 +578,7 @@ class Strategy_DCA:
         global active_grid_pos
         global grids_dict
         print(f'\nactive_grid_pos: {self.active_grid_pos}')
+        print(f'pos_size: {self.pos_size}')
         stored_ttl_pos_size = self.grids_dict[self.active_grid_pos]['ttl_pos_size']
         if ttl_pos_size != stored_ttl_pos_size:
             self.grids_dict[self.active_grid_pos]['ttl_pos_size'] = ttl_pos_size
@@ -592,7 +586,6 @@ class Strategy_DCA:
         
         pre_grid_pos_size = self.grids_dict[self.active_grid_pos]['pos_size']
         grid_pos_size = ttl_pos_size - total_previous_pos_size
-        
         
         if (grid_pos_size != pre_grid_pos_size):
             self.grids_dict[self.active_grid_pos]['pos_size'] = grid_pos_size
@@ -603,7 +596,8 @@ class Strategy_DCA:
     # handle initial entry & exit orders: 
     async def handle_initial_entry_exit_orders (self, profit_percent_1, profit_percent_2, grid_percent_range, main_pos_input_quantity, 
                                                     total_entry_exit_orders, num_total_entry_orders, num_secondary_orders, input_quantity_1, 
-                                                        input_quantity_2, grid_pos_size, ttl_pos_size, num_initial_entry_orders, num_initial_exit_orders,):
+                                                        input_quantity_2, grid_pos_size, ttl_pos_size, num_initial_entry_orders, 
+                                                            num_initial_exit_orders, previous_grid_range_price):
         global grids_dict
         global filled_orders_list
 
@@ -612,7 +606,18 @@ class Strategy_DCA:
         ids_and_quantity_dict = dca_logic.get_total_quantity_and_ids_dict(grid_orders_list, self.entry_side)
         total_exit_quantity = ids_and_quantity_dict['total_exit_quantity']
 
-        if (total_exit_quantity == 0):
+        # determine if exit above previous_grid_range_price
+        # TODO: Determine if exit price will go above previous grid_range entry using force limit entries
+        exit_order_range_percent = (profit_percent_1 * num_initial_exit_orders)
+        exit_order_range_price = calc().calc_percent_difference(self.entry_side, 'exit', self.api.last_price(), exit_order_range_percent)
+
+        if ((self.entry_side == 'Buy') and (previous_grid_range_price != 0) and (exit_order_range_price >= previous_grid_range_price)) \
+            or (self.entry_side == 'Sell') and (previous_grid_range_price != 0) and (exit_order_range_price <= previous_grid_range_price):
+            print(f'\nskipping create order due to previous_grid_range_price conflict')
+            print(f'exit_order_range_price: {exit_order_range_price}')
+            print(f'previous_grid_range_price: {exit_order_range_price}\n')
+
+        elif (total_exit_quantity == 0):
             print('\nclearing all order lists: \n')
             self.grids_dict[self.active_grid_pos] = dca_logic.initialize_grid(total_entry_exit_orders, 0, 0, grid_pos_size, ttl_pos_size)
             self.filled_orders_list = []
@@ -648,7 +653,7 @@ class Strategy_DCA:
         main_pos_exec_price = 0
         print(f'\ncreating main_pos entry, order_type: {order_type} ')
 
-        pre_pos_size = self.api.get_position_size()
+        pre_pos_size = self.pos_size
         print(f'pre_pos_size: {pre_pos_size}')
         
         if (input_quantity > 0):
@@ -918,8 +923,15 @@ class Strategy_DCA:
             self.waiting_orders_list.append(order[0])
             await asyncio.sleep(0)
 
+    async def get_pos_size(self):
+        global pos_size
+        while (True):
+            await asyncio.sleep(0)
+            self.pos_size = await self.ws.get_pos_size()
+            print(f'\npos_size: {self.pos_size}\n')
+
     # TODO: Add checks for confirming active orders
-    async def store_new_changed_filled_orders(self, profit_percent_1, profit_percent_2):
+    async def store_new_changed_filled_orders(self, profit_percent_1, profit_percent_2, total_entry_exit_orders):
         print('in store orders')
         global filled_orders_list
         global grids_dict
@@ -1006,6 +1018,9 @@ class Strategy_DCA:
                     # TODO: Move?
                     await self.handle_slipped_orders()
 
+                    # if filled orders, process:
+                    await self.update_secondary_orders(total_entry_exit_orders)
+
         except Exception as e:
             print("an exception occured - {}".format(e))
             sys.exit()
@@ -1038,3 +1053,4 @@ class Strategy_DCA:
                 print('')
             
             await asyncio.sleep(0)
+

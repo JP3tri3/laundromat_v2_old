@@ -8,7 +8,7 @@ import asyncio
 api_key = config.BYBIT_TESTNET_API_KEY
 api_secret = config.BYBIT_TESTNET_API_SECRET
 leverage = 5
-symbol_pair = 'BTCUSD'
+symbol_pair = 'ETHUSD'
 input_quantity = 100 * leverage
 strat_id = '1_min'
 trade_id = 'bybit_auto_1'
