@@ -46,7 +46,6 @@ class Strategy_DCA:
 
         self.active_grid_pos = 0
         self.pos_size = 0
-        self.db.dcamp_create_new_trade_data_table('dcamp_trade_data')
 
 
         # Set Trade Values
@@ -60,7 +59,7 @@ class Strategy_DCA:
         global grids_dict
         global active_grid_pos
         # TODO: Testing, remove
-        test_strat = False
+        test_strat = True
         # set initialize save state:
         initialize_save_state_tf = False
         # set reset all tables (will error if there is an active position!)
@@ -71,15 +70,15 @@ class Strategy_DCA:
         else: main_strat = True
         
         #Set Trade Values
-        num_initial_entry_orders = 3
+        num_initial_entry_orders = 1
         num_initial_exit_orders = 1
-        num_secondary_orders = 2
+        num_secondary_orders = 1
 
         num_initial_secondary_entry_orders = num_initial_entry_orders * num_secondary_orders
         num_initial_secondary_exit_orders = num_initial_exit_orders * num_secondary_orders
         print(f'num_initial_secondary_entry_orders: {num_initial_secondary_entry_orders}')
         print(f'num_initial_secondary_exit_orders: {num_initial_secondary_exit_orders}')
-        profit_percent_1 = 0.01
+        profit_percent_1 = 0.005
         profit_percent_2 = (profit_percent_1 / (num_secondary_orders + 2))
         print(f'profit_percent_1: {profit_percent_1}')
         print(f'profit_percent_2: {profit_percent_2}')
@@ -120,11 +119,11 @@ class Strategy_DCA:
         if (reset_all_db_tables):
             self.db.initialize_all_tables(dlt_table_t_f=True, create_table_t_f=True, 
                                             total_entry_exit_orders=total_entry_exit_orders)
-            self.db.dcamp_create_new_grid_row(self.active_grid_pos, total_entry_exit_orders)
 
         if main_strat:
             print(f'\nin main_strat\n')
-        # starting tasks
+
+            self.db.dcamp_create_new_grids_table(total_entry_exit_orders)
 
             # initialize from saved state:
             if (initialize_save_state_tf):
@@ -161,7 +160,7 @@ class Strategy_DCA:
             # last_price = await self.ws.get_last_price()
             # print(f'last_price: {last_price}')
 
-
+            self.db.dcamp_create_new_grids_table(2)
 
             # self.active_grid_pos += 1
 
@@ -460,7 +459,7 @@ class Strategy_DCA:
 
         # determine_grid_size, currently by largest set profit * orders:
         #TODO: optimize grid_range_margin margin
-        grid_range_margin = 0.01
+        grid_range_margin = input_quantity_1
         grid_percent_range = (profit_percent_1 * num_total_entry_orders) + grid_range_margin
         grid_range_price = self.grids_dict[self.active_grid_pos]['range_price']
         previous_grid_range_price = 0
@@ -475,12 +474,6 @@ class Strategy_DCA:
         #TODO: Handle secondary grids immediately below active grid to avoid waiting states, or move secondary orders
 
         while (True):
-
-            print(f'\nactive_grid_pos: {self.active_grid_pos}')
-            print(f'waiting for price update:')
-            last_price = await self.ws.get_last_price()
-            print(f'last_price: {last_price}')
-            print(f'outside_existing_grid: {outside_existing_grid}')
 
             print(f'waiting_state: {waiting_state}\n')
 
@@ -571,6 +564,11 @@ class Strategy_DCA:
 
             await asyncio.sleep(0)
 
+            print(f'\nactive_grid_pos: {self.active_grid_pos}')
+            print(f'waiting for price update:')
+            last_price = await self.ws.get_last_price()
+            print(f'last_price: {last_price}')
+            print(f'outside_existing_grid: {outside_existing_grid}')
 
 
     # update grid_pos_size in dict & db: 

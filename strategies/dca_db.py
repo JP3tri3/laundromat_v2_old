@@ -38,7 +38,6 @@ class DCA_DB:
             mdb.delete_table(self.active_orders_table_name)
             mdb.delete_table(self.slipped_orders_table_name)
             mdb.delete_table(self.filled_orders_table_name)
-            mdb.delete_table(self.grids_table_name)
             mdb.delete_table(self.trade_data_table_name)
         else:
             print('not removing tables')
@@ -50,7 +49,6 @@ class DCA_DB:
             self.dcamp_create_orders_table(self.slipped_orders_table_name)
             self.dcamp_create_orders_table(self.filled_orders_table_name)
             self.dcamp_create_new_trade_data_table(self.trade_data_table_name)
-            self.dcamp_create_new_grids_table(self.grids_table_name, total_entry_exit_orders)
         else:
             print('not creating new tables\n')
 
@@ -159,20 +157,46 @@ class DCA_DB:
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
 
-    def dcamp_create_new_grids_table(self, table_name: str, total_entry_exit_orders: int):
+    def check_num_grids_table_columns(self, table_name):
         try:
-            print(f'creating new {table_name} orders table')
+            print(f'checking {table_name} table for matching number of columns')
+            # print(f'current_num_columns: {current_num_columns}')
 
-            query_addition = ''
+            query = (f'SELECT count(*) AS anyName FROM information_schema.columns WHERE table_name = "{table_name}"')
 
-            for x in range(total_entry_exit_orders):
-                column_name = f', {x + 1}_entry_exit VARCHAR(50)'
-                query_addition += column_name
-
-            query = f"CREATE TABLE {table_name} (grid_pos INT UNSIGNED, grid_range_price FLOAT UNSIGNED, pos_size INT UNSIGNED, ttl_pos_size INT UNSIGNED, pos_price FLOAT UNSIGNED, slipped_exit_qty FLOAT UNSIGNED, main_exit_order_link_id VARCHAR(32), time VARCHAR(50) {query_addition})"
-            print(query)
             self.mycursor.execute(query)
-            self.db.commit()
+            num_columns = self.mycursor.fetchall()
+            return num_columns[0][0]
+
+        except mysql.connector.Error as error:
+            print("Failed to update record to database: {}".format(error))
+
+
+    def dcamp_create_new_grids_table(self, total_entry_exit_orders: int):
+        try:
+            table_name = self.grids_table_name
+            print(f'\nchecking {table_name} table for changes')
+            num_columns = 8 + total_entry_exit_orders
+            current_num_columns = self.check_num_grids_table_columns(table_name)
+            print(f'current_num_columns: {current_num_columns}, columns_check: {num_columns}')
+            if (num_columns != current_num_columns):
+                print(f'creating new {table_name} table')
+                mdb.delete_table(table_name)
+
+                query_addition = ''
+
+                for x in range(total_entry_exit_orders):
+                    column_name = f', {x + 1}_entry_exit VARCHAR(50)'
+                    query_addition += column_name
+
+                query = f"CREATE TABLE {table_name} (grid_pos INT UNSIGNED, grid_range_price FLOAT UNSIGNED, pos_size INT UNSIGNED, ttl_pos_size INT UNSIGNED, pos_price FLOAT UNSIGNED, slipped_exit_qty FLOAT UNSIGNED, main_exit_order_link_id VARCHAR(32), time VARCHAR(50) {query_addition})"
+                print(query)
+                self.mycursor.execute(query)
+                self.db.commit()
+
+                self.dcamp_create_new_grid_row(0, total_entry_exit_orders)
+            else:
+                print(f'{table_name}: OK\n')
 
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
