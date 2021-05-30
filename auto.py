@@ -20,12 +20,12 @@ vwap_margin_neg = -10
 vwap_margin_pos = 10
 
 run_strat = True
-setup_default_tables = True
-delete_trade_records = True
+setup_default_tables = False
+delete_trade_records = False
 
 if (setup_default_tables):
     mdb.create_trigger_values_table('ETH')
-    # mdb.create_trigger_values_table('BTC')
+    mdb.create_trigger_values_table('BTC')
     # mdb.setup_default_tables()
 
 
