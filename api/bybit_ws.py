@@ -60,6 +60,7 @@ class Bybit_WS:
             data = self.ws.get_data("position")
             if data:
                 pos_size = data[0]['size']
+                print(f'\npos_size: {pos_size}\n')
                 return pos_size
 
 
@@ -86,7 +87,7 @@ class Bybit_WS:
         last_price_key = 'last_price_e4'
         
         while True:
-            await asyncio.sleep(self.interval)
+            # await asyncio.sleep(self.interval)
             data = self.ws.get_data(f"instrument_info.100ms.{self.symbol_pair}")
             if data:
                 if 'update' in data:
