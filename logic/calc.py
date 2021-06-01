@@ -58,3 +58,21 @@ class Calc:
         return (last_price - limit_price_difference) if (side == 'Buy') \
             else (last_price + limit_price_difference)
 
+    def calc_dollar_cost_average(self, order_price, num_order_contracts, added_order_price, num_added_contracts):
+        
+        previous_cost = order_price * num_order_contracts
+        added_cost = added_order_price * num_added_contracts
+
+        total_combined_cost = previous_cost + added_cost
+        total_combined_contracts = num_order_contracts + num_added_contracts
+
+        dollar_cost_average = round(total_combined_cost / total_combined_contracts, 2)
+
+        print(f'\ncalculating DCA: ')
+        print(f'previous order_price: {order_price}')
+        print(f'previous num_contracts: {num_order_contracts}')
+        print(f'added_order_price: {added_order_price}')
+        print(f'num_added_contracts: {num_added_contracts}')
+        print(f'dollar_cost_average: {dollar_cost_average}\n')
+
+        return dollar_cost_average

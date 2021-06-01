@@ -313,8 +313,12 @@ class DCA_DB:
             print("Failed to update record to database: {}".format(error))
 
     def get_grid_row_dict(self, grid_pos, total_entry_exit_orders):
-        
+        print(f'\nin get_grid_row_dict: grid_pos = {grid_pos}\n')
         try:
+
+            if (grid_pos < 1):
+                grid_pos = 0
+
             table_name = self.grids_table_name
             kv_dict = {}
             column_query = "SHOW COLUMNS FROM " + str(table_name)
@@ -345,21 +349,34 @@ class DCA_DB:
                 column_name = f'{key}{name}'
                 price_details = kv_dict[column_name]
 
-                count = 0
-                for char in price_details:
-                    if (char == attach) and (count != 3):
-                        count += 1
-                    elif (char != attach) and (count == 0):
-                        entry += char
-                    elif (char != attach) and (count == 1):
-                        exit += char
-                    elif (char != attach) and (count == 2):
-                        input_quantity += char
-                    elif (count == 3):
-                        pp += char
+                if (grid_pos == 0):
+                    price_list_dict[key] = {'entry' : 0, 'exit' : 0, 'input_quantity' : 0, 'pp' : 'empty', 'side' : None}
+                else:
 
-                del kv_dict[column_name]
-                price_list_dict[key] = {'entry' : float(entry), 'exit' : float(exit), 'input_quantity' : int(input_quantity), 'pp' : pp, 'side' : None}
+                    count = 0
+                    for char in price_details:
+                        if (char == attach) and (count != 3):
+                            count += 1
+                        elif (char != attach) and (count == 0):
+                            entry += char
+                        elif (char != attach) and (count == 1):
+                            exit += char
+                        elif (char != attach) and (count == 2):
+                            input_quantity += char
+                        elif (count == 3):
+                            pp += char
+
+                    del kv_dict[column_name]
+
+                    print(f'column_name: {column_name}')
+                    print(f'price_details: ')
+                    print(price_details)
+                    print(f'entry: {entry}')
+                    print(f'exit: {exit}')
+                    print(f'input_quantity: {input_quantity}')
+                    print(f'pp: {pp}')
+
+                    price_list_dict[key] = {'entry' : float(entry), 'exit' : float(exit), 'input_quantity' : int(input_quantity), 'pp' : pp, 'side' : None}
 
             kv_dict['price_list'] = price_list_dict
             return(kv_dict)

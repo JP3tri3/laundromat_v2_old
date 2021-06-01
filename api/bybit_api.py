@@ -236,6 +236,15 @@ class Bybit_Api:
                 print(f'force_limit_order_id: {order_id}')
         print('Force Limit Order Successful')
 
+    def change_order_price(self, price, order_link_id):
+        try:
+            print(f"changing order price: {order_link_id} - {price}")
+            order = self.client.Order.Order_replace(symbol=self.symbol_pair, order_link_id=order_link_id, p_r_price=str(price)).result()
+        except Exception as e:
+            print("an exception occured - {}".format(e))
+            return False
+        return order
+
     def change_order_size(self, input_quantity, order_link_id):
         input_quantity = int(input_quantity)
         try:
