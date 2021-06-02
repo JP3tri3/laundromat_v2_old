@@ -92,11 +92,14 @@ def extract_link_id(link_id):
 def get_orders_in_grid(grid_pos: int, order_list: list):
     lst = []
 
-    for order in order_list:
-        order_link_id = order['order_link_id']
-        extracted_link_id = extract_link_id(order_link_id)
-        if extracted_link_id['grid_pos'] == grid_pos:
-            lst.append(order)
+    order_list_len = len(order_list)
+
+    if (order_list_len > 0):
+        for order in order_list:
+            order_link_id = order['order_link_id']
+            extracted_link_id = extract_link_id(order_link_id)
+            if extracted_link_id['grid_pos'] == grid_pos:
+                lst.append(order)
 
     return lst
 
@@ -154,14 +157,16 @@ def get_total_quantity_and_ids_dict(grid_orders_list: list, entry_side: str):
 
     order_dict = {}
 
-    for order in grid_orders_list:
-        side = order['side']
-        quantity = order['qty']
-        if (side == entry_side):
-            total_entry_quantity += quantity
-        else:
-            exit_order_link_ids.append(order['order_link_id'])
-            total_exit_quantity += quantity
+    grid_orders_list_len = len(grid_orders_list)
+    if (grid_orders_list_len > 0):
+        for order in grid_orders_list:
+            side = order['side']
+            quantity = order['qty']
+            if (side == entry_side):
+                total_entry_quantity += quantity
+            else:
+                exit_order_link_ids.append(order['order_link_id'])
+                total_exit_quantity += quantity
 
     order_dict['exit_order_link_ids'] = exit_order_link_ids
     order_dict['total_exit_quantity'] = total_exit_quantity

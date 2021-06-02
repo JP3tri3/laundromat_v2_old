@@ -368,13 +368,13 @@ class DCA_DB:
 
                     del kv_dict[column_name]
 
-                    print(f'column_name: {column_name}')
-                    print(f'price_details: ')
-                    print(price_details)
-                    print(f'entry: {entry}')
-                    print(f'exit: {exit}')
-                    print(f'input_quantity: {input_quantity}')
-                    print(f'pp: {pp}')
+                    # print(f'column_name: {column_name}')
+                    # print(f'price_details: ')
+                    # print(price_details)
+                    # print(f'entry: {entry}')
+                    # print(f'exit: {exit}')
+                    # print(f'input_quantity: {input_quantity}')
+                    # print(f'pp: {pp}')
 
                     price_list_dict[key] = {'entry' : float(entry), 'exit' : float(exit), 'input_quantity' : int(input_quantity), 'pp' : pp, 'side' : None}
 
