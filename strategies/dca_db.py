@@ -284,6 +284,7 @@ class DCA_DB:
     
             print(query)
             self.mycursor.execute(query, vals)
+            print(f'vals: {vals}')
             self.db.commit()
         except mysql.connector.Error as error:
             print("Failed to update record to database: {}".format(error))
