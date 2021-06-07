@@ -16,6 +16,7 @@ def initialize_grid(size, pos_price, grid_range_price, grid_pos_size, ttl_pos_si
     grid_dict['main_exit_order_link_id'] = ''
     grid_dict['slipped_qty'] = 0
     grid_dict['pos_price'] = pos_price
+    grid_dict['ttl_exit_qty'] = 0
     grid_dict['active'] = initialize_orders_list(size)
     grid_dict['cancelled'] = []
     grid_dict['slipped'] = []
@@ -104,38 +105,23 @@ def get_orders_in_grid(grid_pos: int, order_list: list):
     return lst
 
 
-# compare lists and return difference comparing order_id
-# def get_orders_not_active(init_orders_list, active_orders_list):
-#     lst = init_orders_list.copy()
-
-#     for index in active_orders_list:
-#         order_id = index['order_id']
-#         for id in lst:
-#             if id['order_id'] == order_id:
-#                 lst.remove(id)
-#                 break
-
-#     return lst
-
-#retreive grid orders & separate into dict
-def get_grid_orders_dict(grid_pos: int, entry_side: str, order_list: list):
+def get_sorted_orders_dict(entry_side: str, order_list: list):
     entry_orders_list = []
     exit_orders_list = []
-    grid_lst = []
+    total_entry_quantity = 0
+    total_exit_quantity = 0
     order_list_kv = {}
 
     for order in order_list:
-        order_link_id = order['order_link_id']
-        extracted_link_id = extract_link_id(order_link_id)
-        if extracted_link_id['grid_pos'] == grid_pos:
-            grid_lst.append(order)
-
-    for order in grid_lst:
-
-        if (order['side'] == entry_side):
+        quantity = order['qty']
+        side = order['side']
+        if (side == entry_side):
             entry_orders_list.append(order)
+            total_entry_quantity += quantity
+
         else:
             exit_orders_list.append(order)
+            total_exit_quantity += quantity
             
     if (entry_side == 'Buy'):
         order_list_kv['Buy'] = sorted(entry_orders_list, key=lambda k: k['price'], reverse=True)
@@ -145,34 +131,11 @@ def get_grid_orders_dict(grid_pos: int, entry_side: str, order_list: list):
         order_list_kv['Sell'] = sorted(entry_orders_list, key=lambda k: k['price'])
         order_list_kv['Buy'] = sorted(exit_orders_list, key=lambda k: k['price'], reverse=True)
 
+    order_list_kv['total_exit_quantity'] = total_exit_quantity
+    order_list_kv['total_entry_quantity'] = total_entry_quantity
+
     return order_list_kv
 
-
-
-def get_total_quantity_and_ids_dict(grid_orders_list: list, entry_side: str):
-
-    exit_order_link_ids = []
-    total_entry_quantity = 0
-    total_exit_quantity = 0
-
-    order_dict = {}
-
-    grid_orders_list_len = len(grid_orders_list)
-    if (grid_orders_list_len > 0):
-        for order in grid_orders_list:
-            side = order['side']
-            quantity = order['qty']
-            if (side == entry_side):
-                total_entry_quantity += quantity
-            else:
-                exit_order_link_ids.append(order['order_link_id'])
-                total_exit_quantity += quantity
-
-    order_dict['exit_order_link_ids'] = exit_order_link_ids
-    order_dict['total_exit_quantity'] = total_exit_quantity
-    order_dict['total_entry_quantity'] = total_entry_quantity
-
-    return order_dict
 
 def get_updated_order_info(order, profit_percent_1: float, profit_percent_2: float):
     try:
@@ -185,9 +148,7 @@ def get_updated_order_info(order, profit_percent_1: float, profit_percent_2: flo
         order_pos = extracted_link_id['order_pos']
         grid_pos = extracted_link_id['grid_pos']
 
-        if (link_name == 'main'):
-            profit_percent = profit_percent_1 / order_pos
-        elif (link_name == 'pp_1'):
+        if (link_name == 'pp_1'):
             profit_percent = profit_percent_1
         elif (link_name == 'pp_2'):
             profit_percent = profit_percent_2

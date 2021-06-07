@@ -140,19 +140,25 @@ class Bybit_Api:
 
     def get_last_trade_price_record(self, order_link_id):
         #TODO: Note: Last_trade_price in record may be different than actual w/ Market
-        trade_records = self.get_trade_record()
-        trade_price = 0.0
-        num_orders = 0
+        try:
+            trade_records = self.get_trade_record()
+            trade_price = 0.0
+            num_orders = 0
 
-        for record in trade_records:
-            if record['order_link_id'] == order_link_id:
-                trade_price += float(record['exec_price'])
-                num_orders += 1
+            if (trade_records == None):
+                return self.last_price()
+            else:
+                for record in trade_records:
+                    if record['order_link_id'] == order_link_id:
+                        trade_price += float(record['exec_price'])
+                        num_orders += 1
 
-        if (trade_price == 0):
-            return trade_price
-        else:
-            return math.ceil(trade_price / num_orders)
+                if (trade_price == 0):
+                    return trade_price
+                else:
+                    return math.ceil(trade_price / num_orders)
+        except Exception as e:
+            print("an exception occured - {}".format(e))
 
 #orders:
     def place_order(self, price, order_type, side, input_quantity, stop_loss, reduce_only, link_id):

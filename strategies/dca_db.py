@@ -176,7 +176,7 @@ class DCA_DB:
         try:
             table_name = self.grids_table_name
             print(f'\nchecking {table_name} table for changes')
-            num_columns = 8 + total_entry_exit_orders
+            num_columns = 9 + total_entry_exit_orders
             current_num_columns = self.check_num_grids_table_columns(table_name)
             print(f'current_num_columns: {current_num_columns}, columns_check: {num_columns}')
             if (num_columns != current_num_columns):
@@ -189,7 +189,7 @@ class DCA_DB:
                     column_name = f', {x + 1}_entry_exit VARCHAR(50)'
                     query_addition += column_name
 
-                query = f"CREATE TABLE {table_name} (grid_pos INT UNSIGNED, grid_range_price FLOAT UNSIGNED, pos_size INT UNSIGNED, ttl_pos_size INT UNSIGNED, pos_price FLOAT UNSIGNED, slipped_exit_qty FLOAT UNSIGNED, main_exit_order_link_id VARCHAR(32), time VARCHAR(50) {query_addition})"
+                query = f"CREATE TABLE {table_name} (grid_pos INT UNSIGNED, grid_range_price FLOAT UNSIGNED, pos_size INT UNSIGNED, ttl_pos_size INT UNSIGNED, ttl_exit_qty INT UNSIGNED, pos_price FLOAT UNSIGNED, slipped_exit_qty FLOAT UNSIGNED, main_exit_order_link_id VARCHAR(32), time VARCHAR(50) {query_addition})"
                 print(query)
                 self.mycursor.execute(query)
                 self.db.commit()
@@ -212,9 +212,9 @@ class DCA_DB:
                 addition = f', {0}'
                 query_addition += addition
 
-            query = (f"INSERT INTO {self.grids_table_name} () VALUES (%s, %s, %s, %s, %s, %s, %s, %s{query_addition})")
+            query = (f"INSERT INTO {self.grids_table_name} () VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s{query_addition})")
 
-            vals = (grid_pos, 0.0, 0, 0, 0.0, 0.0, 'empty', time)
+            vals = (grid_pos, 0.0, 0, 0, 0, 0.0, 0.0, 'empty', time)
             print(query)
             self.mycursor.execute(query, vals)
             self.db.commit()

@@ -76,3 +76,8 @@ class Calc:
         print(f'dollar_cost_average: {dollar_cost_average}\n')
 
         return dollar_cost_average
+
+
+        32107.2
+
+        24767.2
