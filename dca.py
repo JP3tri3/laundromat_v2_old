@@ -75,7 +75,7 @@ class Strategy_DCA:
         num_initial_secondary_exit_orders = num_initial_exit_orders * num_secondary_orders
         print(f'num_initial_secondary_entry_orders: {num_initial_secondary_entry_orders}')
         print(f'num_initial_secondary_exit_orders: {num_initial_secondary_exit_orders}')
-        profit_percent_1 = 0.0055
+        profit_percent_1 = 0.0025
         profit_percent_2 = (profit_percent_1 / (num_secondary_orders + 2))
         print(f'profit_percent_1: {profit_percent_1}')
         print(f'profit_percent_2: {profit_percent_2}')
@@ -517,20 +517,25 @@ class Strategy_DCA:
     def determine_grid_pos_size(self, total_previous_pos_size, ttl_pos_size):
         global active_grid_pos
         global grids_dict
-        print(f'\nactive_grid_pos: {self.active_grid_pos}')
-        stored_ttl_pos_size = self.grids_dict[self.active_grid_pos]['ttl_pos_size']
-        if ttl_pos_size != stored_ttl_pos_size:
-            self.grids_dict[self.active_grid_pos]['ttl_pos_size'] = ttl_pos_size
-            self.db.replace_grid_row_value(self.active_grid_pos, 'ttl_pos_size', ttl_pos_size)
-        
-        pre_grid_pos_size = self.grids_dict[self.active_grid_pos]['pos_size']
-        grid_pos_size = ttl_pos_size - total_previous_pos_size
-        
-        if (grid_pos_size != pre_grid_pos_size):
-            self.grids_dict[self.active_grid_pos]['pos_size'] = grid_pos_size
-            self.db.replace_grid_row_value(self.active_grid_pos, 'pos_size', grid_pos_size)
 
-        return grid_pos_size
+        if (total_previous_pos_size != None) and (ttl_pos_size != None):
+            print(f'\nactive_grid_pos: {self.active_grid_pos}')
+            stored_ttl_pos_size = self.grids_dict[self.active_grid_pos]['ttl_pos_size']
+            if ttl_pos_size != stored_ttl_pos_size:
+                self.grids_dict[self.active_grid_pos]['ttl_pos_size'] = ttl_pos_size
+                self.db.replace_grid_row_value(self.active_grid_pos, 'ttl_pos_size', ttl_pos_size)
+            
+            pre_grid_pos_size = self.grids_dict[self.active_grid_pos]['pos_size']
+            grid_pos_size = ttl_pos_size - total_previous_pos_size
+            
+            if (grid_pos_size != pre_grid_pos_size):
+                self.grids_dict[self.active_grid_pos]['pos_size'] = grid_pos_size
+                self.db.replace_grid_row_value(self.active_grid_pos, 'pos_size', grid_pos_size)
+
+            return grid_pos_size
+
+        else:
+            return total_previous_pos_size
 
     # handle initial entry & exit orders: 
     async def handle_initial_entry_exit_orders (self, profit_percent_1, profit_percent_2, grid_percent_range, main_pos_input_quantity, 
