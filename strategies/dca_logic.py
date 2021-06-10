@@ -1,4 +1,5 @@
 import sys
+from typing import List
 sys.path.append("..")
 from logic.calc import Calc as calc # type: ignore
 import pprint
@@ -106,33 +107,47 @@ def get_orders_in_grid(grid_pos: int, order_list: list):
 
 
 def get_sorted_orders_dict(entry_side: str, order_list: list):
-    entry_orders_list = []
-    exit_orders_list = []
     total_entry_quantity = 0
     total_exit_quantity = 0
+    entry_orders_list = []
+    exit_orders_list = []
+    entry_sorted_list = []
+    exit_sorted_list = []
+    entry_positions = {}
+    exit_positions = {}
     order_list_kv = {}
+
+    if (entry_side == 'Buy'): exit_side = 'Sell'
+    else: exit_side = 'Buy'
 
     for order in order_list:
         quantity = order['qty']
         side = order['side']
+        order_link_id = order['order_link_id']
+        extracted_link_id = extract_link_id(order_link_id)
+        order_pos = extracted_link_id['order_pos']
+
         if (side == entry_side):
             entry_orders_list.append(order)
             total_entry_quantity += quantity
+            entry_positions[order_pos] = order
 
         else:
             exit_orders_list.append(order)
             total_exit_quantity += quantity
+            exit_positions[order_pos] = order
             
     if (entry_side == 'Buy'):
-        order_list_kv['Buy'] = sorted(entry_orders_list, key=lambda k: k['price'], reverse=True)
-        order_list_kv['Sell'] = sorted(exit_orders_list, key=lambda k: k['price'])
+        entry_sorted_list = sorted(entry_orders_list, key=lambda k: k['price'], reverse=True)
+        exit_sorted_list = sorted(exit_orders_list, key=lambda k: k['price'])
 
     else:
-        order_list_kv['Sell'] = sorted(entry_orders_list, key=lambda k: k['price'])
-        order_list_kv['Buy'] = sorted(exit_orders_list, key=lambda k: k['price'], reverse=True)
+        entry_sorted_list = sorted(entry_orders_list, key=lambda k: k['price'])
+        exit_sorted_list = sorted(exit_orders_list, key=lambda k: k['price'], reverse=True)
 
-    order_list_kv['total_exit_quantity'] = total_exit_quantity
-    order_list_kv['total_entry_quantity'] = total_entry_quantity
+
+    order_list_kv[entry_side] = {'sorted': entry_sorted_list, 'positions' : entry_positions, 'ttl_qty' : total_entry_quantity}
+    order_list_kv[exit_side] = {'sorted' : exit_sorted_list, 'positions': exit_positions, 'ttl_qty' : total_exit_quantity}
 
     return order_list_kv
 
@@ -183,9 +198,6 @@ def get_updated_order_info(order, profit_percent_1: float, profit_percent_2: flo
         sys.exit()
 
 
-
-
-
 def generate_multi_order_price_list(profit_percent_1: float, profit_percent_2: float, num_initial_entry_orders: int, 
                                     num_initial_exit_orders: int, num_secondary_orders: int, initial_price: float, 
                                         input_quantity_1: int, input_quantity_2: int, entry_side: str):
@@ -193,12 +205,6 @@ def generate_multi_order_price_list(profit_percent_1: float, profit_percent_2: f
     if (entry_side == 'Buy'): exit_side = 'Sell'
     else: exit_side = 'Buy'
     
-    print(f'num_secondary_orders: {num_secondary_orders}')
-
-    print(f'num_initial_exit_orders: {num_initial_exit_orders}')
-    print(f'num_initial_entry_orders: {num_initial_entry_orders}')
-
-
     price_dict = {}
     grid_price_dict = {}
     
@@ -276,9 +282,6 @@ def generate_multi_order_price_list(profit_percent_1: float, profit_percent_2: f
         price_list_dict[x] = price
 
     grid_price_dict['price_list'] = price_list_dict
-
-    print('in dca_logic.generate_multi_order_price_list()')
-    print(pprint.pprint(grid_price_dict))
 
     return grid_price_dict
 

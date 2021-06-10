@@ -14,14 +14,14 @@ def determine_new_trend(symbol, entry_side, num_total_grids, active_grid_pos) ->
     num_grids_per_set = (num_total_grids / 2)
 
     micro_tf_1 = '4m'
-    micro_tf_1_range = 8
+    micro_tf_1_range = 5
     micro_tf_2 = '6m'
-    micro_tf_2_range = 7
+    micro_tf_2_range = 5
 
     macro_tf_1 = '24m'
-    macro_tf_1_range = 4
+    macro_tf_1_range = 0
     macro_tf_2 = '1hr'
-    macro_tf_2_range = 2
+    macro_tf_2_range = 0
 
     available_grids = num_total_grids - active_grid_pos
     print(f'available_grids: {available_grids}')
