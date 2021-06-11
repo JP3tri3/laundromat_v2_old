@@ -295,7 +295,7 @@ class Strategy_DCA:
 
 
                     grid_orders_list = dca_logic.get_orders_in_grid(grid_pos_check, orders_list)
-                    grid_orders_dict = dca_logic.get_sorted_orders_dict(self.entry_side, grid_orders_list)
+                    grid_orders_dict = dca_logic.get_sorted_orders_dict(self.entry_side, grid_orders_list, last_price)
                     grid_exit_qty = grid_orders_dict[self.exit_side]['ttl_qty']
                     total_exit_qty += grid_exit_qty
                     self.db.replace_grid_row_value(grid_pos_check, 'ttl_exit_qty', total_exit_qty)
@@ -470,7 +470,7 @@ class Strategy_DCA:
 
                     orders_list = self.api.get_orders()
                     grid_orders_list = dca_logic.get_orders_in_grid(self.active_grid_pos, orders_list)
-                    grid_orders_dict = dca_logic.get_sorted_orders_dict(self.entry_side, grid_orders_list)
+                    grid_orders_dict = dca_logic.get_sorted_orders_dict(self.entry_side, grid_orders_list, last_price)
                     grid_exit_quantity = grid_orders_dict[self.exit_side]['ttl_qty']
                     grid_entry_quantity = grid_orders_dict[self.entry_side]['ttl_qty']
 
@@ -658,7 +658,7 @@ class Strategy_DCA:
 
         orders_list = self.api.get_orders()
         grid_orders_list = dca_logic.get_orders_in_grid(self.active_grid_pos, orders_list)
-        grid_orders_dict = dca_logic.get_sorted_orders_dict(self.entry_side, grid_orders_list)
+        grid_orders_dict = dca_logic.get_sorted_orders_dict(self.entry_side, grid_orders_list, self.api.last_price())
         print(f'\n in create secondary orders \n')
 
         active_entry_orders_list = grid_orders_dict[self.entry_side]['sorted']
@@ -743,7 +743,7 @@ class Strategy_DCA:
 # TODO: fix creating duplicate pos orders
     async def check_grid_orders(self, grid_pos, grid_range_price, total_entry_exit_orders, ttl_pos_size, profit_percent_1):
         orders_list = self.api.get_orders()
-        all_orders_dict = dca_logic.get_sorted_orders_dict(self.entry_side, orders_list)
+        all_orders_dict = dca_logic.get_sorted_orders_dict(self.entry_side, orders_list, self.api.last_price())
         exit_orders_dict = all_orders_dict[self.exit_side]
         total_exit_quantity = exit_orders_dict['ttl_qty']
         all_exit_orders = exit_orders_dict['sorted']
@@ -775,7 +775,7 @@ class Strategy_DCA:
                 grid_orders_list_len = len(grid_orders_list)
                 grids_dict = self.grids_dict[grid_pos_check]
                 grid_pos_size = grids_dict['pos_size']
-                grid_orders_dict = dca_logic.get_sorted_orders_dict(self.entry_side, grid_orders_list)
+                grid_orders_dict = dca_logic.get_sorted_orders_dict(self.entry_side, grid_orders_list, self.api.last_price())
                 grid_exit_quantity = grid_orders_dict[self.exit_side]['ttl_qty']
 
                 if (grid_exit_quantity < grid_pos_size) or (grid_orders_list_len < total_entry_exit_orders):
@@ -787,8 +787,9 @@ class Strategy_DCA:
                     grid_pos_size_check = grid_pos_size
                     price_list = self.grids_dict[grid_pos]['grid_prices']
 
+
+
                     for order in grid_orders_list:
-                        print(pprint.pprint(order))
                         price = float(order['price'])
                         order_link_id = order['order_link_id']
                         extracted_order_link_id = dca_logic.extract_link_id(order_link_id)
@@ -811,10 +812,6 @@ class Strategy_DCA:
                             low_order_ids[order_pos] = {}
                             low_order_ids[order_pos]['order_id'] = order['order_id']
 
-                    print(f'\nprinting active_orders_dict:')
-                    print(pprint.pprint(active_orders_dict))
-                    print(f'printing active_order_keys:')
-                    print(active_order_keys)
 
                     for key in price_list:
                         last_price = self.api.last_price()
@@ -903,7 +900,8 @@ class Strategy_DCA:
         # check exit quantity, move slipped to closest exit order:
         print(f'\nexit quantity check')
         orders_list = self.api.get_orders()
-        quantity_dict = dca_logic.get_sorted_orders_dict(self.entry_side, orders_list)
+        last_price = self.api.last_price()
+        quantity_dict = dca_logic.get_sorted_orders_dict(self.entry_side, orders_list, last_price)
         ttl_exit_quantity = quantity_dict[self.exit_side]['ttl_qty']
 
         print(f'grid_pos_size: {ttl_pos_size}, grid_exit_quantity: {ttl_exit_quantity}')
@@ -911,7 +909,7 @@ class Strategy_DCA:
         print(f'exit_qty_difference: {exit_qty_difference}')
         if (filled_orders_list_len == 0) and (exit_qty_difference > 0):
             
-            orders_dict = dca_logic.get_sorted_orders_dict(self.entry_side, orders_list)
+            orders_dict = dca_logic.get_sorted_orders_dict(self.entry_side, orders_list, last_price)
             exit_orders = orders_dict[self.exit_side]['sorted']
             exit_orders_len = len(exit_orders)
 
@@ -1052,13 +1050,13 @@ class Strategy_DCA:
                 print('')
 
             else:
-
+                last_price = self.api.last_price()
                 if (order_status == 'PartiallyFilled'):
                     print(f'processing partially filled, adding quantity to side: {side}')
                     input_quantity = closed_order['input_quantity']
                     orders_list = self.api.get_orders()
                     grid_orders_list = dca_logic.get_orders_in_grid(self.active_grid_pos, orders_list)
-                    orders_dict = dca_logic.get_sorted_orders_dict(self.entry_side, orders_list)
+                    orders_dict = dca_logic.get_sorted_orders_dict(self.entry_side, orders_list, last_price)
                     if (side == self.entry_side):
                         order_to_update = orders_dict[self.exit_side]['sorted'][0]
                     else:
@@ -1111,7 +1109,7 @@ class Strategy_DCA:
 
                         if (grid_orders_list_len < total_entry_exit_orders):
                             grid_orders_list = dca_logic.get_orders_in_grid(self.active_grid_pos, self.api.get_orders())
-                            grid_orders_dict = dca_logic.get_sorted_orders_dict(self.entry_side, grid_orders_list)
+                            grid_orders_dict = dca_logic.get_sorted_orders_dict(self.entry_side, grid_orders_list, last_price)
                             entry_orders = grid_orders_dict[self.entry_side]['sorted']
 
                             active_order_pos_list = []
