@@ -809,6 +809,10 @@ class Strategy_DCA:
                                     self.api.place_order(pl_price, 'Limit', self.exit_side, pl_qty, 0, True, new_link_id)
                                 else:
                                     qty = grid_pos_size - grid_exit_quantity_check
+                                    grid_orders_list = dca_logic.get_orders_in_grid(grid_pos_check, self.api.get_orders)
+                                    grid_orders_dict = dca_logic.get_sorted_orders_dict(self.entry_side, grid_orders_list, last_price)
+                                    grid_active_exit_orders_sorted = grid_exit_orders['sorted']
+
                                     if (len(grid_active_exit_orders_sorted) > 0):
                                         order_to_update = grid_active_exit_orders_sorted[0]
                                         order_link_id = order_to_update['order_link_id']
