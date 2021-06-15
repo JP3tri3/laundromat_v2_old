@@ -941,18 +941,16 @@ class Strategy_DCA:
         while (len(self.filled_orders_list) > 0):
             last_price = self.api.last_price()
             closed_order = self.filled_orders_list[0]
-            self.filled_orders_list.remove(self.filled_orders_list[0])
 
             orders_list = self.api.get_orders()
             grid_orders_list = dca_logic.get_orders_in_grid(self.active_grid_pos, orders_list)
-            grid_orders_list_len = len(grid_orders_list)
             grid_orders_dict = dca_logic.get_sorted_orders_dict(self.entry_side, grid_orders_list, last_price)
-            grid_active_exit_orders_len = grid_orders_dict[self.exit_side]['sorted']
-            grid_active_entry_orders_len = grid_orders_dict['active_orders']
+            grid_active_exit_orders_len = len(grid_orders_dict[self.exit_side]['sorted'])
+            grid_active_entry_orders_len = len(grid_orders_dict['active_orders'])
             inactive_entry_orders = grid_orders_dict['inactive_orders']
-            grid_ttl_active_orders = grid_active_exit_orders_len + grid_active_entry_orders_len
+            grid_ttl_active_orders_len = grid_active_exit_orders_len + grid_active_entry_orders_len
 
-            print(f'\ncurrent_num_orders_in_grid: {grid_ttl_active_orders}')
+            print(f'\ncurrent_num_orders_in_grid: {grid_ttl_active_orders_len}')
             print(f'total_entry_exit_orders: {total_entry_exit_orders}')
             print(f'processing waiting available order: \n')
 
@@ -963,7 +961,7 @@ class Strategy_DCA:
             if (order_pos == 1):
                 self.create_trade_record(closed_order)
 
-            elif (grid_ttl_active_orders == total_entry_exit_orders):
+            elif (grid_ttl_active_orders_len == total_entry_exit_orders):
                 print('Too many orders, Skipping: ')
                 print('')
             else:
@@ -995,13 +993,6 @@ class Strategy_DCA:
                         order_details = grid_price_list[order_pos]
                         input_quantity = order_details['input_quantity']
                     
-                        # if (order_status == 'Cancelled'):
-                        #     price = closed_order['price']
-                        #     if (side == self.entry_side):
-                        #         reduce_only = False
-                        #     else:
-                        #         reduce_only = True
-
                         if (side == self.entry_side):
                             #create new exit order upon entry close
                             print("\ncreating new exit order")
@@ -1022,11 +1013,6 @@ class Strategy_DCA:
                             print(pprint.pprint(closed_order))
                             sys.exit()
 
-                        print(f'TEST!!!!!!')
-                        print(f'\ngrid_orders_list_len: {grid_orders_list_len}')
-                        print(f'total_entry_exit_orders: {total_entry_exit_orders}')
-
-
                         if (side == self.entry_side) and (order_pos in inactive_entry_orders):
                             order_id = inactive_entry_orders[order_pos]['order_id']
                             self.api.change_order_price_size(price, input_quantity, order_id)
@@ -1036,7 +1022,7 @@ class Strategy_DCA:
                             self.api.place_order(price, 'Limit', side, input_quantity, 0, reduce_only, new_link_id)
 
             await asyncio.sleep(0)
-
+            self.filled_orders_list.remove(self.filled_orders_list[0])
             print(f'num filled_orders: {len(self.filled_orders_list)}')
             if (len(self.filled_orders_list) == 0):
                 print('\n emptied orders list in update secondary orders\n')
