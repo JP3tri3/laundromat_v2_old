@@ -75,7 +75,7 @@ class Strategy_DCA:
         num_initial_secondary_exit_orders = num_initial_exit_orders * num_secondary_orders
         print(f'num_initial_secondary_entry_orders: {num_initial_secondary_entry_orders}')
         print(f'num_initial_secondary_exit_orders: {num_initial_secondary_exit_orders}')
-        profit_percent_1 = 0.0025
+        profit_percent_1 = 0.00075
         profit_percent_2 = (profit_percent_1 / (num_secondary_orders + 2))
         print(f'profit_percent_1: {profit_percent_1}')
         print(f'profit_percent_2: {profit_percent_2}')
@@ -349,6 +349,7 @@ class Strategy_DCA:
             print(f'\nactive_grid_pos: {self.active_grid_pos}')
             print(f'waiting for price update:')
             last_price = await self.ws.get_last_price()
+            await asyncio.sleep(0)
             print(f'last_price: {last_price}')
             print(f'outside_existing_grid: {outside_existing_grid}')
             print(f'previous_grid_range_price: {previous_grid_range_price}')
@@ -1055,7 +1056,6 @@ class Strategy_DCA:
         global grids_dict
 
         slipped_orders = self.grids_dict[grid_pos]['slipped']
-        active_order_keys = []
 
         last_price = self.api.last_price()
         if (len(slipped_orders) > 0):
@@ -1063,30 +1063,34 @@ class Strategy_DCA:
 
             orders_list = self.api.get_orders()
             grid_orders_list = dca_logic.get_orders_in_grid(grid_pos, orders_list)
-            
-            for order in grid_orders_list:
-                order_link_id = order['order_link_id']
-                extracted_link_id = dca_logic.extract_link_id(order_link_id)
-                order_pos = extracted_link_id['order_pos']
-                active_order_keys.append(order_pos)
+            grid_orders_dict = dca_logic.get_sorted_orders_dict(self.entry_side, grid_orders_list, self.api.last_price())
+            active_exit_orders = grid_orders_dict['positions']
+            active_entry_orders = grid_orders_dict['active_orders']
+            inactive_entry_orders = grid_orders_dict['inactive_orders']
 
             for order in self.grids_dict[grid_pos]['slipped']:
                 order_pos = order['order_pos']
-                if order_pos in active_order_keys:
+                side = order['side']
+
+                if ((side == self.exit_side) and (order_pos in active_exit_orders)) \
+                    or ((side == self.entry_side) and (order_pos in active_entry_orders)):
                     print(f'order_pos key {order_pos} already active')
                     self.grids_dict[grid_pos]['slipped'].remove(order)
+                
                 else:
-                    side = order['side']
                     price = order['price']
-                    name = order['link_name']
                     qty = order['input_quantity']
-                    new_link_id = dca_logic.create_link_id(name, grid_pos, order_pos)
-
                     if (side == 'Buy') and (last_price > price) \
                         or (side == 'Sell') and (last_price < price):
                         print(f'processing slipped order: ')
                         self.grids_dict[grid_pos]['slipped'].remove(order)
-                        self.api.place_order(price, 'Limit', side, qty, 0, False, new_link_id)
+                        if (side == self.entry_side) and (order_pos in inactive_entry_orders):
+                            order_id = order['order_id']
+                            self.api.change_order_price_size(price, qty, order_id)
+                        else:
+                            name = order['link_name']
+                            new_link_id = dca_logic.create_link_id(name, grid_pos, order_pos)
+                            self.api.place_order(price, 'Limit', side, qty, 0, False, new_link_id)
 
                 await asyncio.sleep(0)
 
