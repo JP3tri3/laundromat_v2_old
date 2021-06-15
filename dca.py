@@ -448,6 +448,7 @@ class Strategy_DCA:
                     grid_exit_orders = grid_orders_dict[self.exit_side]['sorted']
                     num_active_orders = len(grid_entry_orders) + len(grid_exit_orders)
 
+                    ttl_pos_size = self.api.get_position_size()
                     grid_pos_size = self.determine_grid_pos_size(total_previous_pos_size, ttl_pos_size)
 
                     all_orders_dict = dca_logic.get_sorted_orders_dict(self.entry_side, orders_list, last_price)
@@ -467,7 +468,7 @@ class Strategy_DCA:
                                                                         input_quantity_1, input_quantity_2, grid_pos_size, ttl_pos_size, 
                                                                             num_initial_entry_orders, num_initial_exit_orders, 
                                                                                 previous_grid_range_price)
-                        ttl_pos_size = self.api.get_position_size()
+                        
                         self.update_slipped_exit_qty(ttl_pos_size, profit_percent_1)
 
                     elif (grid_entry_quantity == 0):
@@ -500,7 +501,6 @@ class Strategy_DCA:
         global grids_dict
 
         if (total_previous_pos_size != None) and (ttl_pos_size != None):
-            print(f'\nactive_grid_pos: {self.active_grid_pos}')
             stored_ttl_pos_size = self.grids_dict[self.active_grid_pos]['ttl_pos_size']
             if ttl_pos_size != stored_ttl_pos_size:
                 self.grids_dict[self.active_grid_pos]['ttl_pos_size'] = ttl_pos_size
@@ -881,7 +881,6 @@ class Strategy_DCA:
 
                         else:
                             order = dca_logic.get_updated_order_info(waiting_order, profit_percent_1, profit_percent_2)
-                            self.waiting_orders_list.remove(waiting_order)
 
                             grid_pos = order['grid_pos']
                             if (grid_pos != self.active_grid_pos):
@@ -926,6 +925,7 @@ class Strategy_DCA:
                                 else:
                                     print('invalid order status')
 
+                    self.waiting_orders_list.remove(waiting_order)
                     # if filled orders, process:
                     await asyncio.sleep(0)
                     await self.update_secondary_orders(total_entry_exit_orders)
