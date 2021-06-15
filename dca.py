@@ -650,15 +650,14 @@ class Strategy_DCA:
             value = grid_prices[k]
             print(f'\nvalue in grid_prices (update_orders)')
             print(value)
-            side = value['side']
-            link_name = value['pp']
 
             
             if (k > active_exit_orders_len):
-
+                side = value['side']
+                link_name = value['pp']
+                link_id = dca_logic.create_link_id(link_name, self.active_grid_pos, k)
                 input_quantity = value['input_quantity']
                 
-
                 if (side == None):
                     if (quantity_check < grid_pos_size):
                         side = self.exit_side
@@ -677,7 +676,6 @@ class Strategy_DCA:
                 if (available_orders_index < num_total_available_orders):
                     print(f'available_orders_index: {available_orders_index}')
                     print(f'num_total_available_orders: {num_total_available_orders}')
-                    link_id = dca_logic.create_link_id(link_name, self.active_grid_pos, k)
                     order_link_id = self.api.place_order(price, 'Limit', side, input_quantity, 0, reduce_only, link_id)
                     available_orders_index += 1
 
