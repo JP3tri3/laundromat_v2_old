@@ -21,16 +21,11 @@ vwap_margin_pos = 10
 
 run_strat = True
 setup_default_tables = False
-delete_trade_records = False
 
 if (setup_default_tables):
     mdb.create_trigger_values_table('ETH')
     mdb.create_trigger_values_table('BTC')
     # mdb.setup_default_tables()
-
-
-if (delete_trade_records):
-    mdb.delete_trade_records(True)
 
 async def main():
 
@@ -52,7 +47,6 @@ async def main():
             key_input, input_quantity, leverage, limit_price_difference, max_active_positions, entry_side)
 
         await strat.main()
-
 
 if __name__ == "__main__":  
     try:
