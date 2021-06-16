@@ -447,6 +447,7 @@ class Strategy_DCA:
                     grid_entry_orders = grid_orders_dict['active_orders']
                     grid_exit_orders = grid_orders_dict[self.exit_side]['sorted']
                     num_active_orders = len(grid_entry_orders) + len(grid_exit_orders)
+                    print(f'num_active_orders: {num_active_orders}')
 
                     ttl_pos_size = self.api.get_position_size()
                     grid_pos_size = self.determine_grid_pos_size(total_previous_pos_size, ttl_pos_size)
@@ -474,8 +475,8 @@ class Strategy_DCA:
                     elif (grid_entry_quantity == 0):
                         print(f'\ntotal_entry_quantity == 0\n')
                             
-                    if (grid_pos_size > grid_exit_quantity) or (num_active_orders < total_entry_exit_orders):
-                        self.check_grid_orders(self.active_grid_pos, total_entry_exit_orders, profit_percent_1)
+                    elif (grid_pos_size > grid_exit_quantity) or (num_active_orders < total_entry_exit_orders):
+                        await self.check_grid_orders(self.active_grid_pos, total_entry_exit_orders, profit_percent_1)
 
                 await asyncio.sleep(0)
                     
@@ -750,13 +751,16 @@ class Strategy_DCA:
                     price_list = self.grids_dict[grid_pos]['grid_prices']
 
                     for key in price_list:
+                        print(f'\nchecking key: {key}')
                         value = price_list[key]
                         pl_qty = value['input_quantity']
                         name = value['pp']
                         grid_exit_qty_to_orders_check += pl_qty
 
                         if (grid_exit_quantity_check < grid_pos_size):
+                            print(f'checking exit_orders')
                             if (key in grid_active_exit_order_positions):
+                                print(f'key in grid_active_exit_order_positions')
                                 order = grid_active_exit_order_positions[key]
                                 qty = order['qty']
                                 if (qty > pl_qty):
@@ -765,6 +769,7 @@ class Strategy_DCA:
                                     qty_difference = qty - pl_qty
                                     qty -= qty_difference
                             elif (key not in grid_active_exit_order_positions):
+                                print(f'key not in grid_active_exit_order_positions')
                                 pl_price = value['exit']
                                 if ((self.entry_side == 'Buy') and (last_price < pl_price)) \
                                     or ((self.entry_side == 'Sell') and (last_price > pl_price)):
@@ -793,9 +798,16 @@ class Strategy_DCA:
                                         self.api.place_order(price, 'Limit', self.exit_side, qty, 0, True, new_link_id)
                             
                             grid_exit_quantity_check += qty
+                            print(f'grid_exit_quantity_check: {grid_exit_quantity_check}')
+                            print(f'grid_pos_size: {grid_pos_size}')
 
                         elif (grid_exit_qty_to_orders_check >= grid_pos_size):
+                            print(f'checking entry_orders')
+                            print(f'grid_exit_qty_to_orders_check >= grid_pos_size')
+                            print(f'grid_exit_qty_to_orders_check: {grid_exit_qty_to_orders_check}')
+                            print(f'grid_pos_size: {grid_pos_size}')
                             if (key not in grid_active_entry_orders):
+                                print(f'key not in grid_active_entry_orders')
                                 pl_price = value['entry']
                                 if (key in grid_inactive_entry_orders):
                                     order_to_update = grid_inactive_entry_orders[key]
