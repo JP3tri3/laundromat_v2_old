@@ -213,13 +213,7 @@ class Bybit_Api:
         print('\ncreating limit order: ')
         self.place_order(price, 'Limit', side, input_quantity, stop_loss, reduce_only, link_id)
         return self.get_order_id()
-        # num_orders = len(self.get_orders())
-        # if (num_orders == new_num_orders):
-        #     print('limit order created successfully: ')
-        #     return self.get_order_id()
-        # else:
-        #     print('limit order not successful')
-        #     return 0 
+
 
     # force limit with create limit order
     async def force_limit_order(self, side, input_quantity, limit_price_difference, stop_loss, reduce_only, link_id):
@@ -291,13 +285,16 @@ class Bybit_Api:
         try:
             position_result = self.client.Positions.Positions_myPosition(symbol=self.symbol_pair).result()
             position_result = position_result[0]['result']
-            if 'data' not in position_result:
+            if 'data' not in position_result[0]:
                 return position_result
             else:
                 return position_result[0]['data']
 
 # TODO: Check this again 'data' JSON change:
+# 1st check:
 # ({'ret_code': 0, 'ret_msg': 'OK', 'ext_code': '', 'ext_info': '', 'result': {'id': 0, 'position_idx': 0, 'mode': 0, 'user_id': 141887, 'risk_id': 1, 'symbol': 'BTCUSD', 'side': 'None', 'size': 0, 'position_value': '0', 'entry_price': '0', 'is_isolated': True, 'auto_add_margin': 0, 'leverage': '5', 'effective_leverage': '5', 'position_margin': '0', 'liq_price': '0', 'bust_price': '0', 'occ_closing_fee': '0', 'occ_funding_fee': '0', 'take_profit': '0', 'stop_loss': '0', 'trailing_stop': '0', 'position_status': 'Normal', 'deleverage_indicator': 0, 'oc_calc_data': '{"blq":0,"slq":0,"bmp":0,"smp":0,"bv2c":0.20165,"sv2c":0.20135}', 'order_margin': '0', 'wallet_balance': '0.00999328', 'realised_pnl': '0', 'unrealised_pnl': 0, 'cum_realised_pnl': '-0.00846891', 'cross_seq': 3187902013, 'position_seq': 0, 'created_at': '2021-02-08T22:11:27.331382323Z', 'updated_at': '2021-05-15T01:43:53.80825405Z', 'tp_sl_mode': 'Full'}, 'time_now': '1621043034.064140', 'rate_limit_status': 119, 'rate_limit_reset_ms': 1621043034061, 'rate_limit': 120}, <bravado.requests_client.RequestsResponseAdapter object at 0x000002509C534BB0>)
+# 2nd check:
+# ({'ret_code': 0, 'ret_msg': 'OK', 'ext_code': '', 'ext_info': '', 'result': [{'data': {'id': 0, 'position_idx': 0, 'mode': 0, 'user_id': 141887, 'risk_id': 11, 'symbol': 'ETHUSD', 'side': 'None', 'size': 0, 'position_value': '0', 'entry_price': '0', 'is_isolated': True, 'auto_add_margin': 0, 'leverage': '5', 'effective_leverage': '5', 'position_margin': '0', 'liq_price': '0', 'bust_price': '0', 'occ_closing_fee': '0', 'occ_funding_fee': '0', 'take_profit': '0', 'stop_loss': '0', 'trailing_stop': '0', 'position_status': 'Normal', 'deleverage_indicator': 0, 'oc_calc_data': '{"blq":0,"slq":0,"bmp":0,"smp":0,"bv2c":0.20165,"sv2c":0.20135}', 'order_margin': '0', 'wallet_balance': '0.10618403', 'realised_pnl': '0', 'unrealised_pnl': 0, 'cum_realised_pnl': '-0.05256729', 'cross_seq': 2389503744, 'position_seq': 0, 'created_at': '2021-02-08T22:12:08.768409292Z', 'updated_at': '2021-06-18T01:14:50.047525408Z', 'tp_sl_mode': 'Full'}, 'is_valid': True}], 'time_now': '1623978890.361471', 'rate_limit_status': 119, 'rate_limit_reset_ms': 1623978890358, '
 
         except Exception as e:
             print("an exception occured in get_position_result - {}".format(e))
