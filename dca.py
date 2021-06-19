@@ -160,18 +160,8 @@ class Strategy_DCA:
             
             print(" !!!!! TESTING !!!!")
 
-            grid_orders = dca_logic.get_orders_in_grid(1, self.api.get_orders())
-            test_dict = dca_logic.get_sorted_orders_dict(self.entry_side, grid_orders, self.api.last_price())
-            print(pprint.pprint(test_dict))
-            # test_list = [0, 1, 2, 3, 4, 5]
-            # while (test_list != []):
-            #     test1 = test_list[0]
-            #     print(test1)
-            #     test_list.remove(test1)
-
-            # self.active_grid_pos = 1
-            # await self.initialize_saved_state(total_entry_exit_orders, profit_percent_1, profit_percent_2, num_total_entry_orders)
-
+            order = await self.ws.get_order()
+            print(pprint.pprint(order))
 
     # initialize from saved state:
     async def initialize_saved_state(self, total_entry_exit_orders, profit_percent_1, profit_percent_2, grid_pos_ttl_trade_qty,
@@ -906,7 +896,6 @@ class Strategy_DCA:
             print(pprint.pprint(order))
             self.waiting_orders_list.append(order[0])
             
-
     # TODO: Add checks for confirming active orders
     async def store_new_changed_filled_orders(self, profit_percent_1, profit_percent_2, total_entry_exit_orders):
         global grids_dict
