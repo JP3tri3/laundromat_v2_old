@@ -11,37 +11,37 @@ from sanic.response import json # type: ignore
 from sanic_jinja2 import SanicJinja2 # type: ignore
 # import asyncio
 
-
-app = Sanic(__name__)
-jinja = SanicJinja2(app, pkg_name="listener")
-
-
-@app.route('/')
-async def index(request):
-    return jinja.render("index.html", request)
+class Listener_Test:
+    app = Sanic(__name__)
+    jinja = SanicJinja2(app, pkg_name="listener")
 
 
-@app.route('/webhook', methods=['POST'])
-async def webhook(request):
+    @app.route('/')
+    async def index(request):
+        return jinja.render("index.html", request)
 
-    data = request.json
 
-    # persistent_data = data['persistent_data']
+    @app.route('/webhook', methods=['POST'])
+    async def webhook(request):
 
-    if data['passphrase'] != config.WEBHOOK_PASSPHRASE:
-        print("invalid passphrase")
-        return json({
-            "code": "error",
-            "message": "Invalid Passphrase"
-        })
-    else:
+        data = request.json
 
-        await mdb.replace_tf_trigger_values(data)
+        # persistent_data = data['persistent_data']
 
-        return json({
-            "code": "success",
-            "message": "json updated"
-        })
+        if data['passphrase'] != config.WEBHOOK_PASSPHRASE:
+            print("invalid passphrase")
+            return json({
+                "code": "error",
+                "message": "Invalid Passphrase"
+            })
+        else:
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000, debug=True)
+            await mdb.replace_tf_trigger_values(data)
+
+            return json({
+                "code": "success",
+                "message": "json updated"
+            })
+
+    if __name__ == "__main__":
+        app.run(host="0.0.0.0", port=8000, debug=True)

@@ -88,10 +88,7 @@ async def replace_tf_trigger_values(data):
         await asyncio.sleep(0)
         time = str(time_stamp())
 
-        print(pprint.pprint(pre_kv_dict))
-
         # separate tf:
-
 
         high = data['high']
         low = data['low']
@@ -181,17 +178,17 @@ def get_row_values_dict(table_name: str, id: int) -> dict:
 # delete trade records:
 
 ## Delete 
-def delete_trade_records(flag: bool):
-    try:
-        if (flag == True):
-            print("Deleting Trade Records...")
-            query = "DELETE FROM trade_records"
-            print(query)
-            mycursor.execute(query)
-            db.commit()
-        else:
-            print("Maintaining Trade Records...")
-            return 0
+# def delete_trade_records(flag: bool):
+#     try:
+#         if (flag == True):
+#             print("Deleting Trade Records...")
+#             query = "DELETE FROM trade_records"
+#             print(query)
+#             mycursor.execute(query)
+#             db.commit()
+#         else:
+#             print("Maintaining Trade Records...")
+#             return 0
     
-    except mysql.connector.Error as error:
-        print("Failed to update record to database: {}".format(error))
+#     except mysql.connector.Error as error:
+#         print("Failed to update record to database: {}".format(error))

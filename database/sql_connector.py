@@ -185,8 +185,8 @@ def get_table_pair(table_name, id_name):
 #         db.commit()
 #         return(column_name_list)
 
-    except mysql.connector.Error as error:
-        print("Failed to retrieve record from database: {}".format(error))    
+    # except mysql.connector.Error as error:
+    #     print("Failed to retrieve record from database: {}".format(error))    
 
 
 

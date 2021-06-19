@@ -16,8 +16,6 @@ strat_id = 'dcamp'
 trade_id = 'bybit_auto_2'
 instance = 'testnet_1'
 entry_side = 'Buy'
-vwap_margin_neg = -10
-vwap_margin_pos = 10
 
 run_strat = True
 setup_default_tables = False

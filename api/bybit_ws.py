@@ -68,7 +68,7 @@ class Bybit_WS:
         self.ws.subscribe_order()
         while True:
             await asyncio.sleep(self.interval)
-            data = self.ws.get_data("order")
+            data = self.ws.get_data(f"order")
             if data:
                 # print(pprint.pprint(data))
                 return data
@@ -78,7 +78,7 @@ class Bybit_WS:
         print('subscribed instrument info')
         while True:
             await asyncio.sleep(self.interval)
-            data = self.ws.get_data("instrument_info.100ms.BTCUSD")
+            data = self.ws.get_data(f"instrument_info.100ms.{self.symbol_pair}")
             if data:
                 print(pprint.pprint(data))
 
@@ -87,7 +87,7 @@ class Bybit_WS:
         last_price_key = 'last_price_e4'
         
         while True:
-            # await asyncio.sleep(self.interval)
+            await asyncio.sleep(0)
             data = self.ws.get_data(f"instrument_info.100ms.{self.symbol_pair}")
             if data:
                 if 'update' in data:

@@ -47,7 +47,6 @@ def create_link_id(name_id, grid_pos, order_pos):
     # name-grid_pos-order_pos
 
     link_id = name_id + '-' + str(grid_pos) + '-' + str(order_pos) + '-'
-    print(f'link_id: {link_id}')
     return link_id
 
 
@@ -92,19 +91,25 @@ def extract_link_id(link_id):
 
 # extract orders for grid: 
 def get_orders_in_grid(grid_pos: int, order_list: list):
-    lst = []
+    try:
+        lst = []
 
-    order_list_len = len(order_list)
+        if (order_list == None):
+            order_list_len = 0
+        else:
+            order_list_len = len(order_list)
 
-    if (order_list_len > 0):
-        for order in order_list:
-            order_link_id = order['order_link_id']
-            extracted_link_id = extract_link_id(order_link_id)
-            if extracted_link_id['grid_pos'] == grid_pos:
-                lst.append(order)
+        if (order_list_len > 0):
+            for order in order_list:
+                order_link_id = order['order_link_id']
+                extracted_link_id = extract_link_id(order_link_id)
+                if extracted_link_id['grid_pos'] == grid_pos:
+                    lst.append(order)
 
-    return lst
-
+        return lst
+    except Exception as e:
+        print("an exception occured - {}".format(e))
+        return False
 
 def get_sorted_orders_dict(entry_side: str, order_list: list, last_price: float):
     total_entry_quantity = 0
@@ -123,6 +128,7 @@ def get_sorted_orders_dict(entry_side: str, order_list: list, last_price: float)
     else: exit_side = 'Buy'
 
     compare_price = calc().calc_percent_difference(entry_side, 'entry', last_price, 0.5)
+    print(f'compare_price: {compare_price}')
     entry_order_doubles_check = {}
 
     for order in order_list:
@@ -133,7 +139,6 @@ def get_sorted_orders_dict(entry_side: str, order_list: list, last_price: float)
         order_pos = extracted_link_id['order_pos']
 
         if (side == entry_side):
-            entry_orders_list.append(order)
             total_entry_quantity += quantity
             
             order_price = float(order['price'])
@@ -151,6 +156,7 @@ def get_sorted_orders_dict(entry_side: str, order_list: list, last_price: float)
             if ((entry_side == 'Buy') and (order_price > compare_price)) \
                 or ((entry_side == 'Sell') and (order_price < compare_price)):
                 entry_orders_in_grid[order_pos] = order
+                entry_orders_list.append(order)
             else:
                 entry_orders_outside_grid[order_pos] = order
                 
@@ -169,8 +175,8 @@ def get_sorted_orders_dict(entry_side: str, order_list: list, last_price: float)
 
     order_list_kv[entry_side] = {'sorted': entry_sorted_list, 'positions' : entry_positions, 'ttl_qty' : total_entry_quantity}
     order_list_kv[exit_side] = {'sorted' : exit_sorted_list, 'positions': exit_positions, 'ttl_qty' : total_exit_quantity}
-    order_list_kv['in_grid'] = entry_orders_in_grid
-    entry_positions['outside_grid'] = entry_orders_outside_grid
+    order_list_kv['active_orders'] = entry_orders_in_grid
+    order_list_kv['inactive_orders'] = entry_orders_outside_grid
 
     return order_list_kv
 
