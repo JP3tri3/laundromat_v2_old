@@ -1,0 +1,7 @@
+sanic
+sanic-jinja2
+pipwin
+Twisted
+Bybit
+bybit-ws
+mysql-connector-python

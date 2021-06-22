@@ -1,0 +1,92 @@
+<html>
+
+<head>
+    <title>TEST</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <h1>Test Data Display</h1>
+
+    <table style="width:100%">
+        <tr>
+            <th>TEST</th>
+            <th># of Trades</th>
+            <th>Total P&L</th>
+        </tr>
+        <tr>
+            <td>
+                <div id="mainTest_table_name"></div>
+            </td>
+            <td>
+                <div id="mainTest_number_Of_trades"></div>
+            </td>
+            <td>
+                <div id="mainTest_profit_loss"></div>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div id="test1_table_name"></div>
+            </td>
+            <td>
+                <div id="test1_number_Of_trades"></div>
+            </td>
+            <td>
+                <div id="test1_profit_loss"></div>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div id="test2_table_name"></div>
+            </td>
+            <td>
+                <div id="test2_number_Of_trades"></div>
+            </td>
+            <td>
+                <div id="test2_profit_loss"></div>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div id="test3_table_name"></div>
+            </td>
+            <td>
+                <div id="test3_number_Of_trades"></div>
+            </td>
+            <td>
+                <div id="test3_profit_loss"></div>
+            </td>
+        </tr>
+        <tr>
+            <td>--</td>
+            <td>--</td>
+            <td>--</td>
+        </tr>
+        <tr>
+            <td>--</td>
+            <td>--</td>
+            <td>--</td>
+        </tr>
+    </table>
+    <script>
+        fetch("../data.json")
+            .then(response => response.json())
+            .then(data => {
+                document.querySelector("#mainTest_table_name").innerText = data.mainTest_table_name
+                document.querySelector("#mainTest_number_Of_trades").innerText = data.mainTest_number_Of_trades
+                document.querySelector("#mainTest_profit_loss").innerText = data.mainTest_profit_loss
+                document.querySelector("#test1_table_name").innerText = data.test1_table_name
+                document.querySelector("#test1_number_Of_trades").innerText = data.test1_number_Of_trades
+                document.querySelector("#test1_profit_loss").innerText = data.test1_profit_loss
+                document.querySelector("#test2_table_name").innerText = data.test2_table_name
+                document.querySelector("#test2_number_Of_trades").innerText = data.test2_number_Of_trades
+                document.querySelector("#test2_profit_loss").innerText = data.test2_profit_loss
+                document.querySelector("#test3_table_name").innerText = data.test3_table_name
+                document.querySelector("#test3_number_Of_trades").innerText = data.test3_number_Of_trades
+                document.querySelector("#test3_profit_loss").innerText = data.test3_profit_loss
+            })
+    </script>
+</body>
+
+</html>
